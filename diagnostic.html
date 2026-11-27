@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard Diagnostic</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #f5f5f5; }
+        .box { background: white; padding: 15px; margin: 10px 0; border: 1px solid #ddd; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        h2 { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Dashboard Diagnostic</h1>
+    <div class="box">
+        <h2>1. Testing API Connection</h2>
+        <div id="api-test"></div>
+    </div>
+
+    <div class="box">
+        <h2>2. Testing Chart.js Library</h2>
+        <div id="chart-test"></div>
+    </div>
+
+    <div class="box">
+        <h2>3. Testing Page Initialization</h2>
+        <div id="init-test"></div>
+    </div>
+
+    <div class="box">
+        <h2>4. API Response Sample</h2>
+        <pre id="api-response"></pre>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+
+        async function testAPI() {
+            try {
+                const res = await fetch(`${API_BASE}/dashboard/summary?start_date=2026-11-21`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                document.getElementById('api-test').innerHTML =
+                    `<p class="success">✓ API Connected</p>
+                     <p>Oil Production: ${data.data.production.total_oil_bopd} BOPD</p>
+                     <pre>${JSON.stringify(data, null, 2).substring(0, 500)}</pre>`;
+                document.getElementById('api-response').textContent = JSON.stringify(data, null, 2);
+            } catch (err) {
+                document.getElementById('api-test').innerHTML =
+                    `<p class="error">✗ API Error: ${err.message}</p>`;
+            }
+        }
+
+        function testChartJS() {
+            if (typeof Chart !== 'undefined') {
+                document.getElementById('chart-test').innerHTML =
+                    `<p class="success">✓ Chart.js Loaded (v${Chart.version})</p>`;
+            } else {
+                document.getElementById('chart-test').innerHTML =
+                    `<p class="error">✗ Chart.js NOT Loaded</p>`;
+            }
+        }
+
+        function testInit() {
+            if (typeof loadOverview === 'function') {
+                document.getElementById('init-test').innerHTML =
+                    `<p class="success">✓ loadOverview function exists</p>
+                     <p>Attempting to call loadOverview()...</p>
+                     <div id="init-output"></div>`;
+
+                loadOverview().then(() => {
+                    document.getElementById('init-output').innerHTML =
+                        '<p class="success">✓ loadOverview() completed</p>';
+                }).catch(err => {
+                    document.getElementById('init-output').innerHTML =
+                        `<p class="error">✗ loadOverview() error: ${err.message}</p>`;
+                });
+            } else {
+                document.getElementById('init-test').innerHTML =
+                    `<p class="error">✗ loadOverview function NOT found</p>`;
+            }
+        }
+
+        // Run tests when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            testChartJS();
+            testAPI();
+            setTimeout(testInit, 1000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Test Complex Charts</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+body { font-family: system-ui; padding: 20px; }
+.chart-box { width: 400px; height: 300px; border: 1px solid #ccc; margin: 10px; padding: 10px; }
+canvas { width: 100% !important; height: 100% !important; }
+</style>
+</head>
+<body>
+<h1>Complex Charts Test</h1>
+<div id="status">Loading...</div>
+<div class="chart-box">
+  <h3>MHN</h3>
+  <canvas id="testChart"></canvas>
+</div>
+
+<script>
+async function test() {
+  const status = document.getElementById('status');
+  
+  try {
+    status.textContent = 'Fetching data...';
+    const response = await fetch('http://localhost:5001/api/production/complex/trends?start_date=2026-10-01&end_date=2026-10-28');
+    const data = await response.json();
+    
+    status.textContent = 'Data received: ' + JSON.stringify(Object.keys(data.data));
+    
+    const mhnData = data.data.MHN;
+    const labels = mhnData.dates.map(d => new Date(d).toLocaleDateString('en-US', {month: 'short', day: 'numeric'}));
+    
+    const canvas = document.getElementById('testChart');
+    const ctx = canvas.getContext('2d');
+    
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'MHN Oil (BOPD)',
+          data: mhnData.oil,
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false
+      }
+    });
+    
+    status.textContent += ' - Chart created!';
+  } catch (e) {
+    status.textContent = 'Error: ' + e.message;
+    console.error(e);
+  }
+}
+
+test();
+</script>
+</body>
+</html>
