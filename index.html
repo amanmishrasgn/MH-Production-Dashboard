@@ -1259,12 +1259,25 @@ const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 const WELLS = ['SV#1','SV#2','SV#3','SV#4','SV#5','SV#6','SV#7','SV#8','SV#9','SV#10','SV#11','SV#12',
   'S1-1#1','S1-2#1','S1-3#1','S1-4#1','S1-5#1','S1-6#1','S1-7#1','S1-8#1'];
 
+const getBaseUrl = () => {
+  const path = window.location.pathname;
+  const parts = path.split('/');
+  if (window.location.hostname.includes('github.io') && parts.length > 1 && parts[1]) {
+    return `/${parts[1]}/`;
+  }
+  return './';
+};
+
 // API Configuration
 const API_BASE = window.location.hostname.includes('github.io') ? '' : 'http://localhost:5001/api';
 
-// API fetch wrapper with robust static fallback for GitHub Pages
+// API fetch wrapper with smart static fallback for GitHub Pages
 async function fetchAPI(endpoint, params = {}) {
   const isGH = window.location.hostname.includes('github.io');
+
+  if (isGH) {
+    return handleStaticFallback(endpoint, params);
+  }
 
   try {
     const url = new URL(`${API_BASE}${endpoint}`);
@@ -1274,71 +1287,77 @@ async function fetchAPI(endpoint, params = {}) {
       }
     });
 
-    const response = await fetch(url, { signal: AbortSignal.timeout(2500) });
+    const response = await fetch(url, { signal: AbortSignal.timeout(2000) });
     if (!response.ok) throw new Error(`API error: ${response.status}`);
     const result = await response.json();
     return result.data || result;
   } catch (error) {
-    console.warn('API offline/unreachable, providing static fallback for:', endpoint);
+    console.warn('API offline/unreachable, using static fallback for:', endpoint);
+    return handleStaticFallback(endpoint, params);
+  }
+}
 
-    if (endpoint.includes('/production/daily')) {
-      try {
-        const res = await fetch('production_daily.json');
-        const json = await res.json();
-        const data = (json.data || json).map(r => ({
-          production_date: r.production_date,
-          oil_bopd: r['Total Oil (BOPD)'] || 0,
-          gas_mmscm: r['Gas Total (MMSCMD)'] || 0,
-          wi_bwpd: r['WI Total (BWPD)'] || 0
-        }));
-        return data;
-      } catch (e) { return []; }
-    }
-    if (endpoint.includes('/dashboard/summary')) {
-      try {
-        const res = await fetch('production_daily.json');
-        const json = await res.json();
-        const records = json.data || json;
-        const targetDate = params.start_date || (records.length > 0 ? records[records.length - 1].production_date : '2026-11-21');
-        const match = records.find(r => r.production_date === targetDate) || records[records.length - 1];
-        if (match) {
-          return {
-            production: {
-              total_oil_bopd: match.oil_bopd || 0,
-              total_gas_mmscm: match.gas_mmscm || 0,
-              total_wi_bwpd: match.wi_bwpd || 0,
-              oil_performance_percent: 100.0,
-              gas_performance_percent: 100.0
-            }
-          };
-        }
-      } catch(e) {}
-      return {
-        production: {
-          total_oil_bopd: 0,
-          total_gas_mmscm: 0,
-          total_wi_bwpd: 0,
-          oil_performance_percent: 0,
-          gas_performance_percent: 0
-        }
-      };
-    }
+async function handleStaticFallback(endpoint, params) {
+  const base = getBaseUrl();
+  if (endpoint.includes('/production/daily')) {
+    try {
+      const res = await fetch(`${base}production_daily.json`);
+      const json = await res.json();
+      return (json.data || json).map(r => ({
+        production_date: r.production_date,
+        oil_bopd: r.oil_bopd || r['Total Oil (BOPD)'] || 0,
+        gas_mmscm: r.gas_mmscm || r['Gas Total (MMSCMD)'] || 0,
+        wi_bwpd: r.wi_bwpd || r['WI Total (BWPD)'] || 0
+      }));
+    } catch (e) { return []; }
+  }
+  if (endpoint.includes('/dashboard/summary')) {
+    try {
+      const res = await fetch(`${base}production_daily.json`);
+      const json = await res.json();
+      const records = json.data || json;
+      const targetDate = params.start_date || (records.length > 0 ? records[records.length - 1].production_date : '2026-11-26');
+      const match = records.find(r => r.production_date === targetDate) || records[records.length - 1];
+      if (match) {
+        return {
+          production: {
+            total_oil_bopd: match.oil_bopd || match['Total Oil (BOPD)'] || 0,
+            total_gas_mmscm: match.gas_mmscm || match['Gas Total (MMSCMD)'] || 0,
+            total_wi_bwpd: match.wi_bwpd || match['WI Total (BWPD)'] || 0,
+            oil_performance_percent: 100.0,
+            gas_performance_percent: 100.0
+          }
+        };
+      }
+    } catch(e) {}
+    return {
+      production: { total_oil_bopd: 0, total_gas_mmscm: 0, total_wi_bwpd: 0, oil_performance_percent: 0, gas_performance_percent: 0 }
+    };
+  }
   if (endpoint.includes('/production/complex/trends')) {
     try {
-      const res = await fetch('complex_trends.json');
+      const res = await fetch(`${base}complex_trends.json`);
       const json = await res.json();
       return { data: json };
     } catch (e) { return { data: {} }; }
   }
-    if (endpoint.includes('/flare/production')) {
-      try {
-        const res = await fetch('flare_data.json');
-        const json = await res.json();
-        const date = params.date || Object.keys(json.by_date)[Object.keys(json.by_date).length - 1];
-        return json.by_date[date] || [];
-      } catch (e) { return []; }
-    }
-    if (endpoint.includes('/flare/trends')) {
+  if (endpoint.includes('/flare/production')) {
+    try {
+      const res = await fetch(`${base}flare_data.json`);
+      const json = await res.json();
+      const date = params.date || Object.keys(json.by_date)[Object.keys(json.by_date).length - 1];
+      return json.by_date[date] || [];
+    } catch (e) { return []; }
+  }
+  if (endpoint.includes('/flare/trends')) {
+    try {
+      const res = await fetch(`${base}flare_data.json`);
+      const json = await res.json();
+      return json.trends || { dates: [], 'MH Asset Total': [] };
+    } catch (e) { return { dates: [], 'MH Asset Total': [] }; }
+  }
+  return [];
+}
       try {
         const res = await fetch('flare_data.json');
         const json = await res.json();
