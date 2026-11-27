@@ -1271,28 +1271,23 @@ const getBaseUrl = () => {
 // API Configuration
 const API_BASE = window.location.hostname.includes('github.io') ? '' : 'http://localhost:5001/api';
 
-// API fetch wrapper with smart static fallback for GitHub Pages
+// API fetch wrapper with foolproof auto-fallback
 async function fetchAPI(endpoint, params = {}) {
-  const isGH = window.location.hostname.includes('github.io');
-
-  if (isGH) {
-    return handleStaticFallback(endpoint, params);
-  }
-
+  const base = getBaseUrl();
   try {
-    const url = new URL(`${API_BASE}${endpoint}`);
+    const apiBase = window.location.hostname.includes('github.io') ? '' : 'http://localhost:5001/api';
+    const url = new URL(`${apiBase}${endpoint}`);
     Object.keys(params).forEach(key => {
       if (params[key] !== null && params[key] !== undefined) {
         url.searchParams.append(key, params[key]);
       }
     });
 
-    const response = await fetch(url, { signal: AbortSignal.timeout(2000) });
+    const response = await fetch(url, { signal: AbortSignal.timeout(1500) });
     if (!response.ok) throw new Error(`API error: ${response.status}`);
     const result = await response.json();
     return result.data || result;
   } catch (error) {
-    console.warn('API offline/unreachable, using static fallback for:', endpoint);
     return handleStaticFallback(endpoint, params);
   }
 }
