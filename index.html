@@ -1327,7 +1327,7 @@ async function fetchAPI(endpoint, params = {}) {
       try {
         const res = await fetch('complex_trends.json');
         const json = await res.json();
-        return json.data || {};
+        return json;
       } catch (e) { return {}; }
     }
     if (endpoint.includes('/flare/production')) {
