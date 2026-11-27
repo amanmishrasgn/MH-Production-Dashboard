@@ -1245,6 +1245,7 @@ function load(id) {
     case 'flare': loadFlare(); break;
     case 'gains': loadGains(); break;
   }
+  setTimeout(enableAllChartsInteractivity, 600);
 }
 
 const dates = () => Array.from({length: 30}, (_, i) => {
@@ -1489,6 +1490,25 @@ function closeChartModal() {
   }
 
   document.removeEventListener('keydown', closeOnEscape);
+}
+
+// Automatically make all Chart.js canvases clickable for modal zoom and context menu
+function enableAllChartsInteractivity() {
+  document.querySelectorAll('canvas').forEach(canvas => {
+    if (canvas.id && canvas.chart && !canvas.classList.contains('chart-clickable')) {
+      canvas.classList.add('chart-clickable');
+      const chartBox = canvas.closest('.chart-box');
+      const titleEl = chartBox ? chartBox.querySelector('.chart-title span, .chart-title') : null;
+      const title = titleEl ? titleEl.textContent.trim() : 'Chart View';
+
+      canvas.onclick = (e) => {
+        if (!e.target.closest('.export-btn')) {
+          openChartModal(canvas.id, title);
+        }
+      };
+      setupChartContextMenu(canvas.id);
+    }
+  });
 }
 
 // Right-click context menu
