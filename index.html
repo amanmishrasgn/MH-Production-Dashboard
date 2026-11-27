@@ -1304,9 +1304,9 @@ async function fetchAPI(endpoint, params = {}) {
         if (match) {
           return {
             production: {
-              total_oil_bopd: match['Total Oil (BOPD)'] || 0,
-              total_gas_mmscm: match['Gas Total (MMSCMD)'] || 0,
-              total_wi_bwpd: match['Total WI (BWPD)'] || 0,
+              total_oil_bopd: match.oil_bopd || 0,
+              total_gas_mmscm: match.gas_mmscm || 0,
+              total_wi_bwpd: match.wi_bwpd || 0,
               oil_performance_percent: 100.0,
               gas_performance_percent: 100.0
             }
@@ -1326,7 +1326,22 @@ async function fetchAPI(endpoint, params = {}) {
     if (endpoint.includes('/production/complex/trends')) {
       return {};
     }
-    if (endpoint.includes('/flare/production') || endpoint.includes('/gain/production') || endpoint.includes('/flare/trends') || endpoint.includes('/gain/trends')) {
+    if (endpoint.includes('/flare/production')) {
+      try {
+        const res = await fetch('flare_data.json');
+        const json = await res.json();
+        const date = params.date || Object.keys(json.by_date)[Object.keys(json.by_date).length - 1];
+        return json.by_date[date] || [];
+      } catch (e) { return []; }
+    }
+    if (endpoint.includes('/flare/trends')) {
+      try {
+        const res = await fetch('flare_data.json');
+        const json = await res.json();
+        return json.trends || { dates: [], 'MH Asset Total': [] };
+      } catch (e) { return { dates: [], 'MH Asset Total': [] }; }
+    }
+    if (endpoint.includes('/gain/production') || endpoint.includes('/gain/trends')) {
       return [];
     }
     return null;
