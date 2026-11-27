@@ -3423,13 +3423,7 @@ async function loadGains() {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-  // Calculate yesterday in local time (present day - 1 day)
-  const now = new Date();
-  now.setDate(now.getDate() - 1);
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const defaultDate = `${year}-${month}-${day}`;
+  const defaultDate = '2026-11-26';
   const startDate = '2026-04-01';
 
   const startEl = document.getElementById('start');
