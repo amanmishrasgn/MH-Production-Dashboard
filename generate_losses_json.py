@@ -51,7 +51,8 @@ for row_idx in range(2, ws.max_row + 1):
     cat_str = str(cat_val).strip() if cat_val else "Other"
     subcat_str = str(subcat_val).strip() if subcat_val else "Others"
 
-    if "water loaded" in str(remarks_val).lower() or "water loading" in str(remarks_val).lower():
+    rem_str = str(remarks_val).lower() if remarks_val else ""
+    if "water loaded" in rem_str or "water loading" in rem_str:
         cat_str = "Process"
         subcat_str = "Well issue"
 
@@ -94,13 +95,7 @@ data = {
     "records": records
 }
 
-output_paths = [
-    Path("/Users/amanmishra/Library/CloudStorage/OneDrive-OilandNaturalGasCorporationLimited/MH_Dashboard/MH complete Dashboard/frontend/losses_data.json"),
-    Path("/Users/amanmishra/Library/CloudStorage/OneDrive-OilandNaturalGasCorporationLimited/MH_Dashboard/losses_data.json")
-]
-
-for out_path in output_paths:
-    if out_path.parent.exists():
-        with open(out_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False)
-        print(f"✅ Generated {out_path} with {len(records)} records.")
+out_path = Path("/Users/amanmishra/Library/CloudStorage/OneDrive-OilandNaturalGasCorporationLimited/MH_Dashboard/losses_data.json")
+with open(out_path, 'w', encoding='utf-8') as f:
+    json.dump(data, f, ensure_ascii=False)
+print(f"✅ Generated {out_path} with {len(records)} records.")
