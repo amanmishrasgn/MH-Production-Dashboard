@@ -1495,11 +1495,12 @@ function closeChartModal() {
 // Automatically make all Chart.js canvases clickable for modal zoom and context menu
 function enableAllChartsInteractivity() {
   document.querySelectorAll('canvas').forEach(canvas => {
-    if (canvas.id && canvas.chart && !canvas.classList.contains('chart-clickable')) {
+    if (canvas.id && canvas.chart) {
       canvas.classList.add('chart-clickable');
       const chartBox = canvas.closest('.chart-box');
       const titleEl = chartBox ? chartBox.querySelector('.chart-title span, .chart-title') : null;
-      const title = titleEl ? titleEl.textContent.trim() : 'Chart View';
+      let title = titleEl ? titleEl.textContent.trim() : 'Chart View';
+      title = title.replace('Export', '').trim();
 
       canvas.onclick = (e) => {
         if (!e.target.closest('.export-btn')) {
