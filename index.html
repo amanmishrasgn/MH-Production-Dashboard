@@ -1262,22 +1262,29 @@ const WELLS = ['SV#1','SV#2','SV#3','SV#4','SV#5','SV#6','SV#7','SV#8','SV#9','S
 // API Configuration
 const API_BASE = 'http://localhost:5001/api';
 
-// API fetch wrapper
+// API fetch wrapper with static fallback for GitHub Pages
 async function fetchAPI(endpoint, params = {}) {
-  const url = new URL(`${API_BASE}${endpoint}`);
-  Object.keys(params).forEach(key => {
-    if (params[key] !== null && params[key] !== undefined) {
-      url.searchParams.append(key, params[key]);
-    }
-  });
-
   try {
-    const response = await fetch(url);
+    const url = new URL(`${API_BASE}${endpoint}`);
+    Object.keys(params).forEach(key => {
+      if (params[key] !== null && params[key] !== undefined) {
+        url.searchParams.append(key, params[key]);
+      }
+    });
+
+    const response = await fetch(url, { signal: AbortSignal.timeout(3000) });
     if (!response.ok) throw new Error(`API error: ${response.status}`);
     const result = await response.json();
     return result.data || result;
   } catch (error) {
-    console.error('API fetch failed:', error);
+    console.warn('API fetch failed or offline, using static JSON fallback:', endpoint);
+    if (endpoint.includes('/production/daily')) {
+      try {
+        const res = await fetch('production_data.json');
+        const json = await res.json();
+        return json.data || json;
+      } catch (e) { console.error('Static fallback failed:', e); }
+    }
     return null;
   }
 }
