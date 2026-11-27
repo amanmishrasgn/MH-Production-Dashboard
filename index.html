@@ -1260,7 +1260,7 @@ const WELLS = ['SV#1','SV#2','SV#3','SV#4','SV#5','SV#6','SV#7','SV#8','SV#9','S
   'S1-1#1','S1-2#1','S1-3#1','S1-4#1','S1-5#1','S1-6#1','S1-7#1','S1-8#1'];
 
 // API Configuration
-const API_BASE = 'http://localhost:5001/api';
+const API_BASE = window.location.hostname.includes('github.io') ? '' : 'http://localhost:5001/api';
 
 // API fetch wrapper with robust static fallback for GitHub Pages
 async function fetchAPI(endpoint, params = {}) {
