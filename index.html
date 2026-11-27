@@ -1324,7 +1324,11 @@ async function fetchAPI(endpoint, params = {}) {
       };
     }
     if (endpoint.includes('/production/complex/trends')) {
-      return {};
+      try {
+        const res = await fetch('complex_trends.json');
+        const json = await res.json();
+        return json.data || {};
+      } catch (e) { return {}; }
     }
     if (endpoint.includes('/flare/production')) {
       try {
