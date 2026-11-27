@@ -2012,6 +2012,10 @@ async function loadComplexWiseTrends(startDateParam = null, endDateParam = null)
 
   const complexData = response;
   console.log('Complex data received:', Object.keys(complexData));
+  if (complexData.MHN) {
+    console.log('MHN oil sample:', complexData.MHN.oil?.length, complexData.MHN.oil?.[0]);
+    console.log('MHN gas sample:', complexData.MHN.gas?.length, complexData.MHN.gas?.[0]);
+  }
 
   const complexes = [
     {id: 'MHN', name: 'MHN', color: '#10b981', area: 'North'},
