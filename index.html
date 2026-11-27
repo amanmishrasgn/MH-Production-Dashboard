@@ -1,0 +1,3380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MH Production Dashboard</title>
+<style>
+  /* Layout: Compact dashboard with 7 tabs, small charts that fit on one screen, side-by-side layouts */
+
+  :root {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --accent: #0369a1;
+    --accent-hover: #075985;
+    --success: #059669;
+    --warning: #d97706;
+    --danger: #dc2626;
+    --oil: #15803d;
+    --gas: #0284c7;
+    --water: #0891b2;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      /* Force light mode - dark mode disabled */
+    }
+  }
+
+  :root[data-theme="dark"] {
+    /* Force light mode - dark theme disabled */
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* Header */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))) 0 calc(-1 * max(16px, env(safe-area-inset-right, 0px)));
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+
+  .header-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .header-title { font-size: 16px; font-weight: 600; }
+  .header-subtitle { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  .filters {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .date-input {
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 11px;
+  }
+
+  .btn {
+    padding: 4px 12px;
+    border: none;
+    border-radius: 4px;
+    background: var(--accent);
+    color: white;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .btn:hover { background: var(--accent-hover); }
+  .btn-secondary { background: var(--border); color: var(--text); }
+
+  /* Tabs */
+  .tabs {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px))) 0 calc(-1 * max(16px, env(safe-area-inset-right, 0px)));
+    padding: 0 max(16px, env(safe-area-inset-left, 0px)) 0 max(16px, env(safe-area-inset-right, 0px));
+    overflow-x: auto;
+  }
+
+  .tabs-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    gap: 2px;
+  }
+
+  .tab {
+    padding: 8px 14px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    position: relative;
+    white-space: nowrap;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); }
+  .tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent);
+  }
+
+  /* Content */
+  .content { padding: 14px 0; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; animation: fadeIn 0.2s; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  /* KPIs */
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+  }
+
+  /* KPI with colored backgrounds for Oil, Gas, WI */
+  .kpi.kpi-oil {
+    background: linear-gradient(135deg, rgba(21, 128, 61, 0.15), rgba(22, 163, 74, 0.08));
+    border: 1px solid rgba(21, 128, 61, 0.3);
+  }
+
+  .kpi.kpi-gas {
+    background: linear-gradient(135deg, rgba(2, 132, 199, 0.15), rgba(14, 165, 233, 0.08));
+    border: 1px solid rgba(2, 132, 199, 0.3);
+  }
+
+  .kpi.kpi-wi {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(139, 92, 246, 0.08));
+    border: 1px solid rgba(124, 58, 237, 0.3);
+  }
+
+  .kpi-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+
+  .kpi-value {
+    font-size: 20px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .kpi-unit {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+
+  .kpi-change {
+    font-size: 10px;
+    margin-top: 4px;
+  }
+  .kpi-change.up { color: var(--success); }
+  .kpi-change.down { color: var(--danger); }
+
+  /* Charts */
+  .charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .chart-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+  .charts-row .chart-box { margin-bottom: 0; }
+
+  .chart-title {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .export-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .export-btn:hover {
+    opacity: 1;
+  }
+
+  .export-btn img {
+    width: 16px;
+    height: 16px;
+    display: block;
+  }
+
+  /* Chart wrapper controls the height — canvas fills it */
+  .chart-wrap {
+    position: relative;
+    height: 240px;
+    width: 100%;
+  }
+
+  .chart-wrap-sm { height: 200px; }
+
+  .chart-wrap canvas {
+    position: absolute;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Chart comparison data */
+  .chart-comparison {
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: var(--bg);
+    border-radius: 4px;
+    font-size: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .comparison-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .comparison-label {
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .comparison-value {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .comparison-change {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .comparison-change.positive {
+    color: var(--success);
+  }
+
+  .comparison-change.negative {
+    color: var(--danger);
+  }
+
+  /* Production date input in top row */
+  .prod-date-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .prod-date-wrap input {
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 11px;
+  }
+
+  /* Tables */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+
+  .table-header {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .table-scroll { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th, td {
+    padding: 6px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  th {
+    background: var(--bg);
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 9px;
+    letter-spacing: 0.5px;
+  }
+
+  tbody tr:hover { background: var(--bg); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .badge-active { background: rgba(5, 150, 105, 0.1); color: var(--success); }
+  .badge-woj { background: rgba(217, 119, 6, 0.1); color: var(--warning); }
+  .badge-sick { background: rgba(220, 38, 38, 0.1); color: var(--danger); }
+  .badge-completed { background: rgba(5, 150, 105, 0.1); color: var(--success); }
+  .badge-progress { background: rgba(2, 132, 199, 0.1); color: var(--gas); }
+  .badge-critical { background: rgba(220, 38, 38, 0.15); color: var(--danger); }
+  .badge-major { background: rgba(217, 119, 6, 0.15); color: var(--warning); }
+  .badge-minor { background: rgba(5, 150, 105, 0.1); color: var(--success); }
+
+  /* Chart zoom modal */
+  .chart-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #f8fafc;
+    z-index: 1000;
+  }
+
+  .chart-modal.active {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .chart-modal {
+      background: #1e293b;
+    }
+  }
+
+  :root[data-theme="dark"] .chart-modal {
+    background: #1e293b;
+  }
+
+  .chart-modal-content {
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 32px;
+    width: 95%;
+    max-width: 1600px;
+    max-height: 95vh;
+    overflow: auto;
+    position: relative;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .chart-modal-content {
+      background: #1e293b;
+      border-color: #334155;
+    }
+  }
+
+  :root[data-theme="dark"] .chart-modal-content {
+    background: #1e293b;
+    border-color: #334155;
+  }
+
+  .chart-modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: var(--border);
+    border: none;
+    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    font-size: 20px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+  }
+
+  .chart-modal-close:hover {
+    background: var(--accent);
+    color: white;
+  }
+
+  .chart-modal-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    padding-right: 40px;
+  }
+
+  .chart-modal-canvas-wrap {
+    position: relative;
+    height: 500px;
+    width: 100%;
+    background: var(--bg);
+  }
+
+  .chart-modal-canvas-wrap canvas {
+    position: absolute;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+    background: transparent !important;
+  }
+
+  /* Chart right-click context menu */
+  .chart-context-menu {
+    position: fixed;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 2000;
+    display: none;
+    min-width: 200px;
+    padding: 4px 0;
+  }
+
+  .chart-context-menu.active {
+    display: block;
+  }
+
+  .chart-context-menu-item {
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .chart-context-menu-item:hover {
+    background: var(--bg);
+  }
+
+  .chart-clickable {
+    cursor: pointer;
+  }
+
+  .chart-clickable:hover canvas {
+    opacity: 0.9;
+  }
+
+  @media (max-width: 768px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .charts-row { grid-template-columns: 1fr; }
+    .chart { height: 160px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-content">
+    <div>
+      <div class="header-title">MH Production Dashboard</div>
+    </div>
+    <div class="filters">
+      <div class="prod-date-wrap">
+        <label>Production Date:
+          <input type="date" class="date-input" id="prodDate" value="2026-11-23" onchange="onProdDateChange()">
+        </label>
+      </div>
+      <label style="font-size: 10px; color: var(--text-muted);">From:
+        <input type="date" class="date-input" id="start" value="2026-04-01" onchange="onDateRangeChange()">
+      </label>
+      <label style="font-size: 10px; color: var(--text-muted);">To:
+        <input type="date" class="date-input" id="end" value="2026-11-23" onchange="onDateRangeChange()">
+      </label>
+      <button class="btn" onclick="refresh()">Refresh</button>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tabs-inner">
+    <button class="tab active" onclick="switchTab(event, 'overview')">Overview</button>
+    <button class="tab" onclick="switchTab(event, 'losses')">Losses</button>
+    <button class="tab" onclick="switchTab(event, 'flare')">Flare</button>
+    <button class="tab" onclick="switchTab(event, 'gains')">Gains</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="content">
+
+    <!-- OVERVIEW -->
+    <div class="tab-panel active" id="overview">
+      <div class="kpis">
+        <div class="kpi kpi-oil">
+          <div class="kpi-label">Oil Production</div>
+          <div class="kpi-value" id="kpi-oil">27,450 <span class="kpi-unit">BOPD</span></div>
+          <div class="kpi-change up" id="kpi-oil-perf">Performance: 0.0%</div>
+        </div>
+        <div class="kpi kpi-gas">
+          <div class="kpi-label">Gas Production</div>
+          <div class="kpi-value" id="kpi-gas">135.8 <span class="kpi-unit">MMSCMD</span></div>
+          <div class="kpi-change up" id="kpi-gas-perf">Performance: 0.0%</div>
+        </div>
+        <div class="kpi kpi-wi">
+          <div class="kpi-label">Water Injection</div>
+          <div class="kpi-value" id="kpi-wi">52,800 <span class="kpi-unit">BWPD</span></div>
+          <div class="kpi-change" id="kpi-wi-chg"></div>
+        </div>
+      </div>
+
+      <!-- Oil, Gas & Water Injection Production Trends — three charts side by side -->
+      <div class="charts-row" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="chart-box">
+          <div class="chart-title">
+            <span>MH Total Oil Production</span>
+            <button class="export-btn" onclick="exportChartData('c1', 'MH_Total_Oil_Production')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap"><canvas id="c1"></canvas></div>
+            <div class="chart-comparison" id="comp-c1"></div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">
+            <span>MH Total Gas Production</span>
+            <button class="export-btn" onclick="exportChartData('c1b', 'MH_Total_Gas_Production')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap"><canvas id="c1b"></canvas></div>
+            <div class="chart-comparison" id="comp-c1b"></div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">
+            <span>MH Total Water Injection</span>
+            <button class="export-btn" onclick="exportChartData('c1w', 'MH_Total_Water_Injection')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap"><canvas id="c1w"></canvas></div>
+            <div class="chart-comparison" id="comp-c1w"></div>
+        </div>
+      </div>
+
+      <!-- Complex-wise Oil Production (8 complexes) -->
+      <div style="margin-top: 16px;">
+        <div style="font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--text);">Complex-wise Oil Production</div>
+
+        <!-- MH North Complexes -->
+        <div style="margin-bottom: 12px; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">MH North</div>
+        <div class="charts-row" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 20px;">
+          <div class="chart-box">
+            <div class="chart-title">
+              <span>MHN</span>
+              <button class="export-btn" onclick="exportChartData('cxMHN', 'MHN_Production')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+            </div>
+            <div class="chart-wrap chart-wrap-sm"><canvas id="cxMHN"></canvas></div>
+            <div class="chart-comparison" id="comp-cxMHN"></div>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">
+              <span>NQO</span>
+              <button class="export-btn" onclick="exportChartData('cxNQO', 'NQO_Production')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+            </div>
+            <div class="chart-wrap chart-wrap-sm"><canvas id="cxNQO"></canvas></div>
+            <div class="chart-comparison" id="comp-cxNQO"></div>
+          </div>
+        </div>
+
+        <!-- MH South Complexes -->
+        <div style="margin-bottom: 12px; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">MH South</div>
+        <div class="charts-row" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 20px;">
+          <div class="chart-box">
+            <div class="chart-title">
+              <span>BHS</span>
+              <button class="export-btn" onclick="exportChartData('cxBHS', 'BHS_Production')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+            </div>
+            <div class="chart-wrap chart-wrap-sm"><canvas id="cxBHS"></canvas></div>
+            <div class="chart-comparison" id="comp-cxBHS"></div>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">
+              <span>SCA</span>
+              <button class="export-btn" onclick="exportChartData('cxSCA', 'SCA_Production')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+            </div>
+            <div class="chart-wrap chart-wrap-sm"><canvas id="cxSCA"></canvas></div>
+            <div class="chart-comparison" id="comp-cxSCA"></div>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">
+              <span>SHP</span>
+              <button class="export-btn" onclick="exportChartData('cxSHP', 'SHP_Production')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+            </div>
+            <div class="chart-wrap chart-wrap-sm"><canvas id="cxSHP"></canvas></div>
+            <div class="chart-comparison" id="comp-cxSHP"></div>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">
+              <span>ICP</span>
+              <button class="export-btn" onclick="exportChartData('cxICP', 'ICP_Production')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+            </div>
+            <div class="chart-wrap chart-wrap-sm"><canvas id="cxICP"></canvas></div>
+            <div class="chart-comparison" id="comp-cxICP"></div>
+          </div>
+        </div>
+
+        <!-- Marginal Fields -->
+        <div style="margin-bottom: 12px; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Marginal Fields</div>
+        <div class="charts-row" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="chart-box">
+            <div class="chart-title">
+              <span>CL-7</span>
+              <button class="export-btn" onclick="exportChartData('cxCL7', 'CL7_Production')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+            </div>
+            <div class="chart-wrap chart-wrap-sm"><canvas id="cxCL7"></canvas></div>
+            <div class="chart-comparison" id="comp-cxCL7"></div>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">
+              <span>WO-16</span>
+              <button class="export-btn" onclick="exportChartData('cxWO16', 'WO16_Production')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+            </div>
+            <div class="chart-wrap chart-wrap-sm"><canvas id="cxWO16"></canvas></div>
+            <div class="chart-comparison" id="comp-cxWO16"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Complex-wise Gas Production (8 complexes) -->
+      <div style="margin-top: 16px;">
+        <div style="font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--text);">Complex-wise Gas Production</div>
+
+        <!-- MH North Complexes -->
+        <div style="margin-bottom: 12px; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">MH North</div>
+        <div class="charts-row" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 20px;">
+          <div class="chart-box">
+            <div class="chart-title">
+              <span>MHN Gas</span>
+              <button class="export-btn" onclick="exportChartData('cxMHNGas', 'MHN_Gas_Production')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+            </div>
+            <div class="chart-wrap chart-wrap-sm"><canvas id="cxMHNGas"></canvas></div>
+            <div class="chart-comparison" id="comp-cxMHNGas"></div>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">
+              <span>NQO Gas</span>
+              <button class="export-btn" onclick="exportChartData('cxNQOGas', 'NQO_Gas_Production')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+            </div>
+            <div class="chart-wrap chart-wrap-sm"><canvas id="cxNQOGas"></canvas></div>
+            <div class="chart-comparison" id="comp-cxNQOGas"></div>
+          </div>
+        </div>
+
+        <!-- MH South Complexes -->
+        <div style="margin-bottom: 12px; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">MH South</div>
+        <div class="charts-row" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 20px;">
+          <div class="chart-box">
+            <div class="chart-title">
+              <span>BHS Gas</span>
+              <button class="export-btn" onclick="exportChartData('cxBHSGas', 'BHS_Gas_Production')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+            </div>
+            <div class="chart-wrap chart-wrap-sm"><canvas id="cxBHSGas"></canvas></div>
+            <div class="chart-comparison" id="comp-cxBHSGas"></div>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">
+              <span>SCA Gas</span>
+              <button class="export-btn" onclick="exportChartData('cxSCAGas', 'SCA_Gas_Production')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAASTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+            </div>
+            <div class="chart-wrap chart-wrap-sm"><canvas id="cxSCAGas"></canvas></div>
+            <div class="chart-comparison" id="comp-cxSCAGas"></div>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">
+              <span>SHP Gas</span>
+              <button class="export-btn" onclick="exportChartData('cxSHPGas', 'SHP_Gas_Production')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+            </div>
+            <div class="chart-wrap chart-wrap-sm"><canvas id="cxSHPGas"></canvas></div>
+            <div class="chart-comparison" id="comp-cxSHPGas"></div>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">
+              <span>ICP Gas</span>
+              <button class="export-btn" onclick="exportChartData('cxICPGas', 'ICP_Gas_Production')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+            </div>
+            <div class="chart-wrap chart-wrap-sm"><canvas id="cxICPGas"></canvas></div>
+            <div class="chart-comparison" id="comp-cxICPGas"></div>
+          </div>
+        </div>
+
+        <!-- Marginal Fields -->
+        <div style="margin-bottom: 12px; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Marginal Fields</div>
+        <div class="charts-row" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="chart-box">
+            <div class="chart-title">
+              <span>CL-7 Gas</span>
+              <button class="export-btn" onclick="exportChartData('cxCL7Gas', 'CL7_Gas_Production')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+            </div>
+            <div class="chart-wrap chart-wrap-sm"><canvas id="cxCL7Gas"></canvas></div>
+            <div class="chart-comparison" id="comp-cxCL7Gas"></div>
+          </div>
+          <div class="chart-box">
+            <div class="chart-title">
+              <span>WO-16 Gas</span>
+              <button class="export-btn" onclick="exportChartData('cxWO16Gas', 'WO16_Gas_Production')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+            </div>
+            <div class="chart-wrap chart-wrap-sm"><canvas id="cxWO16Gas"></canvas></div>
+            <div class="chart-comparison" id="comp-cxWO16Gas"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <!-- LOSSES -->
+    <div class="tab-panel" id="losses">
+
+      <div class="kpis">
+        <div class="kpi" style="border-left: 4px solid var(--oil);">
+          <div class="kpi-label">Total Oil Loss</div>
+          <div class="kpi-value" id="lossKpiOil">0.0 <span class="kpi-unit">Bbls</span></div>
+          <div class="kpi-change up" id="lossKpiOilChg">vs Yesterday: 0 Bbls</div>
+        </div>
+        <div class="kpi" style="border-left: 4px solid var(--gas);">
+          <div class="kpi-label">Total Gas Loss</div>
+          <div class="kpi-value" id="lossKpiGas">0.000 <span class="kpi-unit">MMSCM</span></div>
+          <div class="kpi-change up" id="lossKpiGasChg">vs Yesterday: 0 MMSCM</div>
+        </div>
+        <div class="kpi" style="border-left: 4px solid var(--wi);">
+          <div class="kpi-label">Total WI Loss</div>
+          <div class="kpi-value" id="lossKpiWi">0.0 <span class="kpi-unit">Bbls</span></div>
+          <div class="kpi-change up" id="lossKpiWiChg">vs Yesterday: 0 Bbls</div>
+        </div>
+      </div>
+
+      <!-- 3 Trends in one line -->
+      <div class="charts-row" style="grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px;">
+        <div class="chart-box">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div class="chart-title">Total Oil Loss Trend</div>
+            <button class="export-btn" onclick="exportChartData('lossTrendOil', 'Total_Oil_Loss_Trend')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap" style="height: 180px;"><canvas id="lossTrendOil"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div class="chart-title">Total Gas Loss Trend</div>
+            <button class="export-btn" onclick="exportChartData('lossTrendGas', 'Total_Gas_Loss_Trend')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap" style="height: 180px;"><canvas id="lossTrendGas"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div class="chart-title">Total WI Loss Trend</div>
+            <button class="export-btn" onclick="exportChartData('lossTrendWi', 'Total_WI_Loss_Trend')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap" style="height: 180px;"><canvas id="lossTrendWi"></canvas></div>
+        </div>
+      </div>
+
+      <!-- 3 Category Pie Charts in one line below the trends -->
+      <div class="charts-row" style="grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px;">
+        <div class="chart-box">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div class="chart-title">Oil Loss by Category</div>
+            <button class="export-btn" onclick="exportChartData('lossOilPieChart', 'Oil_Loss_by_Category')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap" style="height: 200px;"><canvas id="lossOilPieChart"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div class="chart-title">Gas Loss by Category</div>
+            <button class="export-btn" onclick="exportChartData('lossGasPieChart', 'Gas_Loss_by_Category')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap" style="height: 200px;"><canvas id="lossGasPieChart"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div class="chart-title">WI Loss by Category</div>
+            <button class="export-btn" onclick="exportChartData('lossWiPieChart', 'WI_Loss_by_Category')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap" style="height: 200px;"><canvas id="lossWiPieChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Complex-wise breakdown section -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid var(--border); padding-bottom: 8px;">
+        <div style="font-size: 13px; font-weight: 700; color: var(--text);">Complex-wise Loss Breakdown</div>
+        <select id="lossMetricSelector" class="date-input" style="padding: 6px 12px; font-weight: 600;">
+          <option value="oil">Oil Loss</option>
+          <option value="gas">Gas Loss</option>
+          <option value="wi">WI Loss</option>
+        </select>
+      </div>
+
+      <!-- Complex breakdown container -->
+      <div id="complexBreakdownContainer"></div>
+      <div id="lossDrillBanner" style="display: none; background: rgba(56,189,248,0.1); border: 1px solid var(--accent); border-radius: 6px; padding: 8px 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
+        <span id="lossDrillText">Active Filter: None</span>
+        <button onclick="resetLossDrill()" style="background: none; border: none; color: var(--accent); font-weight: 700; cursor: pointer; text-decoration: underline;">Clear Filter</button>
+      </div>
+
+            <div class="table-wrap">
+        <div class="table-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span>Detailed Loss Records (<span id="lossTableCount">0</span>)</span>
+            <button class="export-btn" onclick="exportLossTableData()" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <span style="font-size: 11px; color: var(--text-muted);">From:</span>
+            <input type="date" id="lossStartDate" class="date-input" title="From Date">
+            <span style="font-size: 11px; color: var(--text-muted);">To:</span>
+            <input type="date" id="lossEndDate" class="date-input" title="To Date">
+            <input type="text" id="lossSearch" placeholder="Search wells, remarks..." class="date-input" style="width: 180px;">
+            <select id="lossCatFilter" class="date-input"><option value="">All Categories</option></select>
+            <select id="lossSubCatFilter" class="date-input"><option value="">All Sub-Categories</option></select>
+            <select id="lossCplxFilter" class="date-input"><option value="">All Complexes</option></select>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Complex</th>
+                <th>Category</th>
+                <th>Sub-category</th>
+                <th>Oil Loss</th>
+                <th>Gas Loss</th>
+                <th>WI Loss</th>
+                <th>Remarks</th>
+              </tr>
+            </thead>
+            <tbody id="lossTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- FLARE -->
+    <div class="tab-panel" id="flare">
+      <div class="kpis">
+        <div class="kpi" style="border-left: 4px solid #ea580c;">
+          <div class="kpi-label">Total Flare (Production Date)</div>
+          <div class="kpi-value" id="flareKpiTotal">0.000 <span class="kpi-unit">MMSCMD</span></div>
+          <div class="kpi-change up" id="flareKpiTotalChg">vs Yesterday: 0.000 MMSCMD</div>
+        </div>
+        <div class="kpi" style="border-left: 4px solid #f97316;">
+          <div class="kpi-label">Highest Flaring Complex</div>
+          <div class="kpi-value" id="flareKpiHighest">—</div>
+          <div class="kpi-change" id="flareKpiHighestVal">0.000 MMSCMD</div>
+        </div>
+        <div class="kpi" style="border-left: 4px solid #0284c7;">
+          <div class="kpi-label">Average Flare</div>
+          <div class="kpi-value" id="flareKpiAvg">0.000 <span class="kpi-unit">MMSCM/D</span></div>
+          <div class="kpi-change" id="flareKpiDateRange">Cumulative: 0.000 MMSCM</div>
+        </div>
+      </div>
+
+      <!-- Top Row: Complex Flare Histogram on Production Date & Total Flare Trend -->
+      <div class="charts-row" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+        <div class="chart-box">
+          <div class="chart-title">
+            <span>Complex-Wise Flare</span>
+            <button class="export-btn" onclick="exportComplexFlareData()" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap" style="height: 240px;"><canvas id="flareBarChart"></canvas></div>
+        </div>
+
+        <div class="chart-box">
+          <div class="chart-title">
+            <span>Total MH Asset Flare Trend</span>
+            <button class="export-btn" onclick="exportChartData('flareTrendTotal', 'Total_Flare_Trend')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap" style="height: 240px;"><canvas id="flareTrendTotal"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Complex-wise Flare Trends section -->
+      <div style="font-size: 13px; font-weight: 700; color: var(--text); border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-bottom: 14px;">
+        Complex-wise Flare Trends
+      </div>
+
+      <div class="charts-row" style="grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px;">
+        <div class="chart-box">
+          <div class="chart-title" style="font-size: 11px;">
+            <span>MHN Flare</span>
+            <button class="export-btn" onclick="exportChartData('cxMHNFlare', 'MHN_Flare')" title="Export"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap chart-wrap-sm"><canvas id="cxMHNFlare"></canvas></div>
+        </div>
+
+        <div class="chart-box">
+          <div class="chart-title" style="font-size: 11px;">
+            <span>NQO Flare</span>
+            <button class="export-btn" onclick="exportChartData('cxNQOFlare', 'NQO_Flare')" title="Export"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap chart-wrap-sm"><canvas id="cxNQOFlare"></canvas></div>
+        </div>
+
+        <div class="chart-box">
+          <div class="chart-title" style="font-size: 11px;">
+            <span>BHS Flare</span>
+            <button class="export-btn" onclick="exportChartData('cxBHSFlare', 'BHS_Flare')" title="Export"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap chart-wrap-sm"><canvas id="cxBHSFlare"></canvas></div>
+        </div>
+
+        <div class="chart-box">
+          <div class="chart-title" style="font-size: 11px;">
+            <span>SCA Flare</span>
+            <button class="export-btn" onclick="exportChartData('cxSCAFlare', 'SCA_Flare')" title="Export"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap chart-wrap-sm"><canvas id="cxSCAFlare"></canvas></div>
+        </div>
+      </div>
+
+      <div class="charts-row" style="grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+        <div class="chart-box">
+          <div class="chart-title" style="font-size: 11px;">
+            <span>SHP + WO-16 Flare</span>
+            <button class="export-btn" onclick="exportChartData('cxSHPWO16Flare', 'SHP_WO16_Flare')" title="Export"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap chart-wrap-sm"><canvas id="cxSHPWO16Flare"></canvas></div>
+        </div>
+
+        <div class="chart-box">
+          <div class="chart-title" style="font-size: 11px;">
+            <span>ICP Flare</span>
+            <button class="export-btn" onclick="exportChartData('cxICPFlare', 'ICP_Flare')" title="Export"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap chart-wrap-sm"><canvas id="cxICPFlare"></canvas></div>
+        </div>
+
+        <div class="chart-box">
+          <div class="chart-title" style="font-size: 11px;">
+            <span>CL-7 Flare</span>
+            <button class="export-btn" onclick="exportChartData('cxCL7Flare', 'CL7_Flare')" title="Export"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap chart-wrap-sm"><canvas id="cxCL7Flare"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GAINS -->
+    <div class="tab-panel" id="gains">
+      <div class="kpis">
+        <div class="kpi" style="border-left: 4px solid #10b981;">
+          <div class="kpi-label">Total Oil Gain (Bbls)</div>
+          <div class="kpi-value" id="gainKpiOil">0.0 <span class="kpi-unit">Bbls</span></div>
+        </div>
+        <div class="kpi" style="border-left: 4px solid #0284c7;">
+          <div class="kpi-label">Total Gas Gain (MMSCM)</div>
+        <div class="kpi-value" id="gainKpiGas">0.000 <span class="kpi-unit">MMSCM</span></div>
+        </div>
+        <div class="kpi" style="border-left: 4px solid #0891b2;">
+          <div class="kpi-label">Total WI Gain (Bbls)</div>
+          <div class="kpi-value" id="gainKpiWi">0.0 <span class="kpi-unit">Bbls</span></div>
+        </div>
+      </div>
+
+      <!-- Complex-wise Gain Trends -->
+      <div style="margin-bottom: 12px; font-size: 13px; font-weight: 700; color: var(--text); border-bottom: 2px solid var(--border); padding-bottom: 8px;">
+        Complex-wise Gain Trends
+      </div>
+
+      <div class="charts-row" style="grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+        <div class="chart-box">
+          <div class="chart-title" style="font-size: 11px;">
+            <span>MHN Gain</span>
+            <button class="export-btn" onclick="exportChartData('cxMHNGain', 'MHN_Gain')" title="Export"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap chart-wrap-sm"><canvas id="cxMHNGain"></canvas></div>
+        </div>
+
+        <div class="chart-box">
+          <div class="chart-title" style="font-size: 11px;">
+            <span>NQO Gain</span>
+            <button class="export-btn" onclick="exportChartData('cxNQOGain', 'NQO_Gain')" title="Export"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap chart-wrap-sm"><canvas id="cxNQOGain"></canvas></div>
+        </div>
+
+        <div class="chart-box">
+          <div class="chart-title" style="font-size: 11px;">
+            <span>SHP Gain</span>
+            <button class="export-btn" onclick="exportChartData('cxSHPGain', 'SHP_Gain')" title="Export"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap chart-wrap-sm"><canvas id="cxSHPGain"></canvas></div>
+        </div>
+      </div>
+
+      <div class="charts-row" style="grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
+        <div class="chart-box">
+          <div class="chart-title" style="font-size: 11px;">
+            <span>ICP Gain</span>
+            <button class="export-btn" onclick="exportChartData('cxICPGain', 'ICP_Gain')" title="Export"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap chart-wrap-sm"><canvas id="cxICPGain"></canvas></div>
+        </div>
+
+        <div class="chart-box">
+          <div class="chart-title" style="font-size: 11px;">
+            <span>CL-7 Gain</span>
+            <button class="export-btn" onclick="exportChartData('cxCL7Gain', 'CL7_Gain')" title="Export"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap chart-wrap-sm"><canvas id="cxCL7Gain"></canvas></div>
+        </div>
+
+        <div class="chart-box">
+          <div class="chart-title" style="font-size: 11px;">
+            <span>SHP + WO-16 Gain</span>
+            <button class="export-btn" onclick="exportChartData('cxSHPWO16Gain', 'SHP_WO16_Gain')" title="Export"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap chart-wrap-sm"><canvas id="cxSHPWO16Gain"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Gain Records Table -->
+      <div class="table-wrap">
+        <div class="table-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span>Gain Records (<span id="gainTableCount">0</span>)</span>
+            <button class="export-btn" onclick="exportGainTableData()" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="gainSearch" placeholder="Search wells, remarks..." class="date-input" style="width: 220px;">
+            <select id="gainCatFilter" class="date-input"><option value="">All Metrics</option><option value="Oil">Oil Gain</option><option value="Gas">Gas Gain</option><option value="WI">WI Gain</option></select>
+            <select id="gainCplxFilter" class="date-input"><option value="">All Complexes</option></select>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Complex</th>
+                <th>Well</th>
+                <th>Metric</th>
+                <th>Gain Qty</th>
+                <th>Remarks</th>
+                <th>Short Remarks</th>
+              </tr>
+            </thead>
+            <tbody id="gainTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Chart Zoom Modal -->
+<div class="chart-modal" id="chartModal">
+  <div class="chart-modal-content">
+    <button class="chart-modal-close" onclick="closeChartModal()">×</button>
+    <div class="chart-modal-title" id="modalChartTitle"></div>
+    <div class="chart-modal-canvas-wrap">
+      <canvas id="modalChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Chart Context Menu -->
+<div class="chart-context-menu" id="chartContextMenu">
+  <div class="chart-context-menu-item" onclick="saveChartAsImage('png')">
+    💾 Save as PNG
+  </div>
+  <div class="chart-context-menu-item" onclick="copyChartImage()">
+    📋 Copy Chart
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const isDark = () => false;
+
+const grid = () => isDark() ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+const tick = () => isDark() ? '#94a3b8' : '#64748b';
+
+const formatDateDDMMYYYY = (dateStr) => {
+  if (!dateStr) return dateStr;
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return dateStr;
+};
+
+const opts = (extra = {}) => Object.assign({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      enabled: true,
+      backgroundColor: isDark() ? 'rgba(30,30,30,0.95)' : 'rgba(255,255,255,0.95)',
+      titleColor: isDark() ? '#fff' : '#000',
+      bodyColor: isDark() ? '#fff' : '#000',
+      borderColor: isDark() ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+      borderWidth: 1,
+      padding: 12,
+      displayColors: true,
+      callbacks: {
+        title: function(context) {
+          return context[0].label;
+        },
+        label: function(context) {
+          let label = context.dataset.label || '';
+          if (label) {
+            label += ': ';
+          }
+          label += context.parsed.y.toLocaleString();
+          return label;
+        }
+      }
+    }
+  },
+  scales: {
+    x: {
+      grid: { color: grid() },
+      ticks: { color: '#000', font: { size: 9, weight: 'bold' } },
+      border: { color: '#000', width: 1.5 }
+    },
+    y: {
+      grid: { color: grid() },
+      ticks: { color: '#000', font: { size: 9, weight: 'bold' } },
+      border: { color: '#000', width: 1.5 }
+    }
+  },
+  interaction: {
+    mode: 'index',
+    intersect: false
+  }
+}, extra);
+
+function switchTab(e, id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  e.target.classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  load(id);
+}
+
+function refresh() {
+  lossRawData.records = []; // Clear cached losses data so it re-fetches latest JSON
+  const active = document.querySelector('.tab-panel.active');
+  if (active) {
+    active.querySelectorAll('canvas').forEach(c => {
+      if (c.chart) {
+        c.chart.destroy();
+        c.chart = null;
+      }
+    });
+    load(active.id);
+  }
+}
+
+function load(id) {
+  switch(id) {
+    case 'overview': loadOverview(); break;
+    case 'losses': loadLosses(); break;
+    case 'flare': loadFlare(); break;
+    case 'gains': loadGains(); break;
+  }
+}
+
+const dates = () => Array.from({length: 30}, (_, i) => {
+  const d = new Date(2026, 5, i + 1);
+  return d.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+});
+
+const r = (lo, hi) => lo + Math.random() * (hi - lo);
+const ri = (lo, hi) => Math.round(r(lo, hi));
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+const WELLS = ['SV#1','SV#2','SV#3','SV#4','SV#5','SV#6','SV#7','SV#8','SV#9','SV#10','SV#11','SV#12',
+  'S1-1#1','S1-2#1','S1-3#1','S1-4#1','S1-5#1','S1-6#1','S1-7#1','S1-8#1'];
+
+// API Configuration
+const API_BASE = 'http://localhost:5001/api';
+
+// API fetch wrapper
+async function fetchAPI(endpoint, params = {}) {
+  const url = new URL(`${API_BASE}${endpoint}`);
+  Object.keys(params).forEach(key => {
+    if (params[key] !== null && params[key] !== undefined) {
+      url.searchParams.append(key, params[key]);
+    }
+  });
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    const result = await response.json();
+    return result.data || result;
+  } catch (error) {
+    console.error('API fetch failed:', error);
+    return null;
+  }
+}
+
+// Helper function to create comparison data display
+function updateComparison(compId, startValue, endValue, unit = 'BOPD') {
+  const compDiv = document.getElementById(compId);
+  if (!compDiv) return;
+
+  const diff = endValue - startValue;
+  const percentChange = startValue !== 0 ? ((diff / startValue) * 100) : 0;
+  const changeClass = diff >= 0 ? 'positive' : 'negative';
+  const sign = diff >= 0 ? '+' : '-';
+
+  // Format values based on unit - use 3 decimals for gas (MMSCMD), round for others
+  const isGas = unit === 'MMSCMD';
+  const formatValue = (val) => isGas ? val.toFixed(3) : Math.round(val).toLocaleString();
+  const formatDiff = (val) => isGas ? Math.abs(val).toFixed(3) : Math.abs(Math.round(val)).toLocaleString();
+
+  compDiv.innerHTML = `
+    <div class="comparison-item">
+      <span class="comparison-label">Start:</span>
+      <span class="comparison-value">${formatValue(startValue)} ${unit}</span>
+    </div>
+    <div class="comparison-item">
+      <span class="comparison-label">End:</span>
+      <span class="comparison-value">${formatValue(endValue)} ${unit}</span>
+    </div>
+    <div class="comparison-item">
+      <span class="comparison-label">Change:</span>
+      <span class="comparison-change ${changeClass}">
+        ${sign}${formatDiff(diff)} ${unit} (${sign}${Math.abs(percentChange).toFixed(1)}%)
+      </span>
+    </div>
+  `;
+}
+
+// Chart interaction variables
+let currentContextMenuCanvas = null;
+let modalChartInstance = null;
+
+// Click-to-zoom: Open chart in modal
+function openChartModal(canvasId, chartTitle) {
+  const sourceCanvas = document.getElementById(canvasId);
+  if (!sourceCanvas || !sourceCanvas.chart) return;
+
+  const modal = document.getElementById('chartModal');
+  const modalCanvas = document.getElementById('modalChart');
+  const titleElement = document.getElementById('modalChartTitle');
+
+  // Set title
+  titleElement.textContent = chartTitle;
+
+  // Destroy previous modal chart if exists
+  if (modalChartInstance) {
+    modalChartInstance.destroy();
+  }
+
+  // Clone the chart configuration - deep clone that preserves colors and gradients
+  const sourceChart = sourceCanvas.chart;
+  const sourceData = sourceChart.data;
+
+  // Deep clone data, preserving colors and non-serializable properties
+  const clonedData = {
+    labels: [...sourceData.labels],
+    datasets: sourceData.datasets.map(ds => {
+      const clonedDs = {
+        label: ds.label,
+        data: [...ds.data],
+        borderColor: ds.borderColor,
+        backgroundColor: ds.backgroundColor,
+        fill: ds.fill,
+        tension: ds.tension,
+        borderWidth: ds.borderWidth,
+        pointRadius: ds.pointRadius,
+        pointHoverRadius: ds.pointHoverRadius,
+        pointBackgroundColor: ds.pointBackgroundColor,
+        pointBorderColor: ds.pointBorderColor
+      };
+
+      // If backgroundColor is a gradient object, recreate it for modal canvas
+      if (ds.backgroundColor && typeof ds.backgroundColor === 'object' && ds.backgroundColor.addColorStop) {
+        // Extract color from borderColor and create new gradient
+        const ctx = modalCanvas.getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        const baseColor = ds.borderColor || '#0284c7';
+        gradient.addColorStop(0, baseColor + '40');
+        gradient.addColorStop(1, baseColor + '08');
+        clonedDs.backgroundColor = gradient;
+      }
+
+      return clonedDs;
+    })
+  };
+
+  // Clone options
+  const clonedOptions = JSON.parse(JSON.stringify(sourceChart.config.options));
+
+  const config = {
+    type: sourceChart.config.type,
+    data: clonedData,
+    options: clonedOptions
+  };
+
+  // Create new chart in modal
+  modalChartInstance = new Chart(modalCanvas, config);
+
+  // Show modal
+  modal.classList.add('active');
+
+  // Close on background click
+  modal.onclick = (e) => {
+    if (e.target === modal) {
+      closeChartModal();
+    }
+  };
+
+  // Close on Escape key
+  document.addEventListener('keydown', closeOnEscape);
+}
+
+function closeOnEscape(e) {
+  if (e.key === 'Escape') {
+    closeChartModal();
+  }
+}
+
+function closeChartModal() {
+  const modal = document.getElementById('chartModal');
+  modal.classList.remove('active');
+
+  // Destroy modal chart
+  if (modalChartInstance) {
+    modalChartInstance.destroy();
+    modalChartInstance = null;
+  }
+
+  document.removeEventListener('keydown', closeOnEscape);
+}
+
+// Right-click context menu
+function setupChartContextMenu(canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    currentContextMenuCanvas = canvas;
+
+    const menu = document.getElementById('chartContextMenu');
+    menu.style.left = e.pageX + 'px';
+    menu.style.top = e.pageY + 'px';
+    menu.classList.add('active');
+  });
+}
+
+// Hide context menu on click outside
+document.addEventListener('click', () => {
+  const menu = document.getElementById('chartContextMenu');
+  menu.classList.remove('active');
+});
+
+// Save chart as image
+function saveChartAsImage(format = 'png') {
+  if (!currentContextMenuCanvas || !currentContextMenuCanvas.chart) return;
+
+  const canvas = currentContextMenuCanvas;
+  const chart = canvas.chart;
+
+  // Get chart title for filename
+  const titleElement = canvas.closest('.chart-box').querySelector('.chart-title span');
+  const chartTitle = titleElement ? titleElement.textContent.replace(/\s+/g, '_') : 'chart';
+
+  // Convert canvas to blob
+  canvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${chartTitle}_${new Date().toISOString().split('T')[0]}.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, `image/${format}`);
+
+  // Hide menu
+  document.getElementById('chartContextMenu').classList.remove('active');
+}
+
+// Copy chart with embedded data
+async function copyChartWithData() {
+  if (!currentContextMenuCanvas || !currentContextMenuCanvas.chart) return;
+
+  const canvas = currentContextMenuCanvas;
+  const chart = canvas.chart;
+
+  try {
+    // Get chart image as blob
+    const blob = await new Promise(resolve => {
+      canvas.toBlob(resolve, 'image/png');
+    });
+
+    // Get chart data as HTML table
+    const data = chart.data;
+    let htmlTable = '<table border="1" style="border-collapse: collapse;">';
+
+    // Header row
+    htmlTable += '<tr>';
+    htmlTable += '<th style="padding: 4px; background: #f0f0f0; font-weight: bold;">Date</th>';
+    data.datasets.forEach(dataset => {
+      htmlTable += `<th style="padding: 4px; background: #f0f0f0; font-weight: bold;">${dataset.label || 'Value'}</th>`;
+    });
+    htmlTable += '</tr>';
+
+    // Data rows
+    data.labels.forEach((label, index) => {
+      htmlTable += '<tr>';
+      htmlTable += `<td style="padding: 4px;">${label}</td>`;
+      data.datasets.forEach(dataset => {
+        const value = dataset.data[index] || 0;
+        htmlTable += `<td style="padding: 4px; text-align: right;">${Math.round(value).toLocaleString()}</td>`;
+      });
+      htmlTable += '</tr>';
+    });
+    htmlTable += '</table>';
+
+    // Create clipboard items with both image and HTML data
+    const clipboardItems = [
+      new ClipboardItem({
+        'image/png': blob,
+        'text/html': new Blob([htmlTable], { type: 'text/html' }),
+        'text/plain': new Blob([htmlTable.replace(/<[^>]*>/g, '\t').replace(/\t+/g, '\t')], { type: 'text/plain' })
+      })
+    ];
+
+    // Copy to clipboard
+    await navigator.clipboard.write(clipboardItems);
+
+    // Show success message
+    alert('Chart and data copied to clipboard! You can now paste it into Excel, Word, or any other application.');
+
+  } catch (error) {
+    console.error('Copy failed:', error);
+    alert('Failed to copy chart. Please try saving as image instead.');
+  }
+
+  // Hide menu
+  document.getElementById('chartContextMenu').classList.remove('active');
+}
+
+// Alias for backward compatibility with HTML onclick handler
+const copyChartImage = copyChartWithData;
+
+// Export chart data to Excel via backend API
+async function exportChartData(canvasId, filename) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || !canvas.chart) {
+    alert('Chart data not available. Please wait for the chart to load.');
+    return;
+  }
+
+  const chart = canvas.chart;
+  const data = chart.data;
+  const isPie = chart.config.type === 'pie' || chart.config.type === 'doughnut';
+
+  // Prepare data for export
+  const exportData = [];
+
+  // Get current production date from UI
+  const prodDate = document.getElementById('prodDate') ? document.getElementById('prodDate').value : new Date().toISOString().split('T')[0];
+
+  // Add Production Date metadata row at the top
+  exportData.push(['Production Date:', prodDate]);
+  exportData.push([]); // blank row
+
+  // Add header row
+  const firstColHeader = isPie ? 'Category / Item' : 'Date';
+  const headers = [firstColHeader];
+  data.datasets.forEach(dataset => {
+    headers.push(dataset.label || 'Value');
+  });
+  exportData.push(headers);
+
+  // Helper function to convert date label to dd-mm-yyyy format
+  function formatDateForExport(label) {
+    // If rawDates are stored on the chart, use them
+    if (chart.rawDates && chart.rawDates.length > 0) {
+      const index = data.labels.indexOf(label);
+      if (index >= 0 && index < chart.rawDates.length) {
+        const date = new Date(chart.rawDates[index]);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}-${month}-${year}`;
+      }
+    }
+
+    // Fallback: try to parse the label (e.g., "Nov 21" format)
+    const currentYear = new Date().getFullYear();
+    try {
+      const date = new Date(`${label} ${currentYear}`);
+      if (!isNaN(date.getTime())) {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}-${month}-${year}`;
+      }
+    } catch (e) {
+      console.warn('Could not parse date:', label);
+    }
+
+    // If all else fails, return the original label
+    return label;
+  }
+
+  // Add data rows
+  data.labels.forEach((label, index) => {
+    const rowLabel = isPie ? label : formatDateForExport(label);
+    const row = [rowLabel];
+    data.datasets.forEach(dataset => {
+      row.push(dataset.data[index] || 0);
+    });
+    exportData.push(row);
+  });
+
+  try {
+    // Send data to backend for Excel generation with formatting
+    const response = await fetch('http://localhost:5001/api/export/chart', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data: exportData,
+        filename: filename
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Export failed');
+    }
+
+    // Get the blob from response
+    const blob = await response.blob();
+
+    // Create download link
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+
+    // Get filename from response header or use default
+    const contentDisposition = response.headers.get('content-disposition');
+    let downloadFilename = filename + '_' + new Date().toISOString().split('T')[0] + '.xlsx';
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (filenameMatch && filenameMatch[1]) {
+        downloadFilename = filenameMatch[1].replace(/['"]/g, '');
+      }
+    }
+
+    a.download = downloadFilename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+
+  } catch (error) {
+    console.error('Export error:', error);
+    alert('Failed to export data. Please ensure the backend server is running.');
+  }
+}
+
+async function loadOverview(startDateParam = null, endDateParam = null, prodDateParam = null) {
+  // Use provided parameters if available, otherwise read from DOM inputs
+  const startDate = startDateParam || document.getElementById('start').value;
+  const endDate = endDateParam || document.getElementById('end').value;
+  const prodDate = prodDateParam || document.getElementById('prodDate').value;
+
+  console.log('loadOverview called with dates:', {startDate, endDate, prodDate, fromParams: !!startDateParam});
+
+  // Fetch summary for KPIs using ONLY the production date (single day)
+  const summary = await fetchAPI('/dashboard/summary', {start_date: prodDate, end_date: prodDate});
+  if (summary && (summary.production || (summary.data && summary.data.production))) {
+    const prod = summary.production || summary.data.production;
+    console.log('Fetched production data:', prod);
+    document.getElementById('kpi-oil').innerHTML = `${Math.round(prod.total_oil_bopd).toLocaleString()} <span class="kpi-unit">BOPD</span>`;
+    document.getElementById('kpi-gas').innerHTML = `${prod.total_gas_mmscm.toFixed(1)} <span class="kpi-unit">MMSCMD</span>`;
+    document.getElementById('kpi-wi').innerHTML = `${Math.round(prod.total_wi_bwpd).toLocaleString()} <span class="kpi-unit">BWPD</span>`;
+
+    // Display individual performance values
+    const oilPerf = prod.oil_performance_percent || 0;
+    const gasPerf = prod.gas_performance_percent || 0;
+    document.getElementById('kpi-oil-perf').innerHTML = `Performance: ${oilPerf.toFixed(1)}%`;
+    document.getElementById('kpi-oil-perf').className = oilPerf >= 100 ? 'kpi-change up' : (oilPerf >= 90 ? 'kpi-change' : 'kpi-change down');
+    document.getElementById('kpi-gas-perf').innerHTML = `Performance: ${gasPerf.toFixed(1)}%`;
+    document.getElementById('kpi-gas-perf').className = gasPerf >= 100 ? 'kpi-change up' : (gasPerf >= 90 ? 'kpi-change' : 'kpi-change down');
+  }
+
+  // Fetch daily production data for the date range
+  const productionData = await fetchAPI('/production/daily', {start_date: startDate, end_date: endDate});
+  if (!productionData) return;
+
+  // Fetch complex-wise trend data from the new API endpoint
+  const response = await fetchAPI('/production/complex/trends', {start_date: startDate, end_date: endDate});
+  const complexData = response ? response.data : null;
+
+  const complexes = [
+    {id: 'MHN', name: 'MHN', color: '#10b981', area: 'North'},
+    {id: 'NQO', name: 'NQO', color: '#34d399', area: 'North'},
+    {id: 'BHS', name: 'BHS', color: '#f59e0b', area: 'South'},
+    {id: 'SCA', name: 'SCA', color: '#fbbf24', area: 'South'},
+    {id: 'SHP', name: 'SHP', color: '#0ea5e9', area: 'South'},
+    {id: 'ICP', name: 'ICP', color: '#38bdf8', area: 'South'},
+    {id: 'CL7', name: 'CL-7', color: '#8b5cf6', area: 'Marginal'},
+    {id: 'WO16', name: 'WO-16', color: '#a78bfa', area: 'Marginal'}
+  ];
+
+  // Create area charts for each complex
+  complexes.forEach(cx => {
+    const canvas = document.getElementById(`cx${cx.id}`);
+    if (!canvas) return;
+
+    const cxData = complexData ? complexData[cx.id] : null;
+    if (!cxData) return;
+
+    // Format dates for display
+    const labels = cxData.dates.map(d => {
+      const dt = new Date(d);
+      return dt.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+    });
+
+    if (canvas.chart) {
+      // Update existing chart
+      canvas.chart.data.labels = labels;
+      canvas.chart.data.datasets[0].data = cxData.oil;
+      canvas.chart.rawDates = cxData.dates;
+      canvas.chart.update();
+    } else {
+      // Create new area chart with gradient
+      const ctx = canvas.getContext('2d');
+      const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+      gradient.addColorStop(0, cx.color + '40'); // 25% opacity at top
+      gradient.addColorStop(1, cx.color + '08'); // 3% opacity at bottom
+
+      canvas.chart = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: cx.name + ' Oil (BOPD)',
+            data: cxData.oil,
+            borderColor: cx.color,
+            backgroundColor: gradient,
+            fill: true,
+            tension: 0.4,
+            borderWidth: 2.5,
+            pointRadius: 3,
+            pointBackgroundColor: cx.color,
+            pointBorderColor: '#fff',
+            pointBorderWidth: 1.5,
+            pointHoverRadius: 5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          onClick: (event, elements) => {
+            if (elements.length > 0) {
+              const dataIndex = elements[0].index;
+              const label = labels[dataIndex];
+              const value = cxData.oil[dataIndex];
+              alert(`Date: ${label}\n${cx.name} Oil: ${Math.round(value).toLocaleString()} BOPD`);
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              enabled: true,
+              mode: 'index',
+              intersect: false,
+              backgroundColor: isDark() ? 'rgba(30,30,30,0.95)' : 'rgba(255,255,255,0.95)',
+              titleColor: isDark() ? '#fff' : '#000',
+              bodyColor: isDark() ? '#fff' : '#000',
+              borderColor: isDark() ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+              borderWidth: 1,
+              padding: 10,
+              callbacks: {
+                title: function(context) {
+                  return 'Date: ' + context[0].label;
+                },
+                label: function(context) {
+                  return cx.name + ': ' + Math.round(context.parsed.y).toLocaleString() + ' BOPD';
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: '#000', font: { size: 9, weight: 'bold' } },
+              border: { color: '#000', width: 1.5 }
+            },
+            y: {
+              grid: { color: grid() },
+              ticks: { color: '#000', font: { size: 9, weight: 'bold' } },
+              border: { color: '#000', width: 1.5 }
+            }
+          }
+        }
+      });
+      // Store raw dates for export
+      canvas.chart.rawDates = cxData.dates;
+    }
+  });
+
+  // Group by date for main production trends
+  const byDate = {};
+  productionData.forEach(row => {
+    if (!byDate[row.production_date]) {
+      byDate[row.production_date] = {north: {}, south: {}};
+    }
+    if (row.complex_name === 'MH North') {
+      byDate[row.production_date].north = row;
+    } else {
+      byDate[row.production_date].south = row;
+    }
+  });
+
+  const dates = Object.keys(byDate).sort();
+  const labels = dates.map(d => {
+    const dt = new Date(d);
+    return dt.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+  });
+
+  // Calculate totals for each date
+  const oilData = dates.map(d => (byDate[d].north.oil_bopd || 0) + (byDate[d].south.oil_bopd || 0));
+  const gasData = dates.map(d => (byDate[d].north.gas_mmscm || 0) + (byDate[d].south.gas_mmscm || 0));
+  const wiData = dates.map(d => (byDate[d].north.wi_bwpd || 0) + (byDate[d].south.wi_bwpd || 0));
+
+  // Oil Production Trend
+  const c1 = document.getElementById('c1');
+  if (c1 && !c1.chart) {
+    c1.chart = new Chart(c1, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {label: 'Oil (BOPD)', data: oilData, borderColor: '#15803d', backgroundColor: 'rgba(21,128,61,0.08)', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 0}
+        ]
+      },
+      options: opts({plugins: {legend: {display: false}}})
+    });
+    // Store raw dates for export
+    c1.chart.rawDates = dates;
+    // Add click-to-zoom and right-click context menu
+    c1.classList.add('chart-clickable');
+    c1.onclick = (e) => { if (!e.target.closest('.export-btn')) openChartModal('c1', 'MH Total Oil Production'); };
+    setupChartContextMenu('c1');
+    // Update comparison for Oil trend
+    if (oilData.length > 1) {
+      updateComparison('comp-c1', oilData[0], oilData[oilData.length - 1], 'BOPD');
+    }
+  } else if (c1 && c1.chart) {
+    c1.chart.data.labels = labels;
+    c1.chart.data.datasets[0].data = oilData;
+    c1.chart.rawDates = dates;
+    c1.chart.update();
+    // Update comparison for Oil trend
+    if (oilData.length > 1) {
+      updateComparison('comp-c1', oilData[0], oilData[oilData.length - 1], 'BOPD');
+    }
+  }
+
+  // Gas Production Trend
+  const c1b = document.getElementById('c1b');
+  if (c1b && !c1b.chart) {
+    c1b.chart = new Chart(c1b, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {label: 'Gas (MMSCMD)', data: gasData, borderColor: '#0284c7', backgroundColor: 'rgba(2,132,199,0.08)', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 0}
+        ]
+      },
+      options: opts({plugins: {legend: {display: false}}})
+    });
+    // Store raw dates for export
+    c1b.chart.rawDates = dates;
+    // Add click-to-zoom and right-click context menu
+    c1b.classList.add('chart-clickable');
+    c1b.onclick = (e) => { if (!e.target.closest('.export-btn')) openChartModal('c1b', 'MH Total Gas Production'); };
+    setupChartContextMenu('c1b');
+    // Update comparison for Gas trend
+    if (gasData.length > 1) {
+      updateComparison('comp-c1b', gasData[0], gasData[gasData.length - 1], 'MMSCMD');
+    }
+  } else if (c1b && c1b.chart) {
+    c1b.chart.data.labels = labels;
+    c1b.chart.data.datasets[0].data = gasData;
+    c1b.chart.rawDates = dates;
+    c1b.chart.update();
+    // Update comparison for Gas trend
+    if (gasData.length > 1) {
+      updateComparison('comp-c1b', gasData[0], gasData[gasData.length - 1], 'MMSCMD');
+    }
+  }
+
+  // Water Injection Trend
+  const c1w = document.getElementById('c1w');
+  if (c1w && !c1w.chart) {
+    c1w.chart = new Chart(c1w, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {label: 'WI (BWPD)', data: wiData, borderColor: '#7c3aed', backgroundColor: 'rgba(124,58,237,0.08)', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 0}
+        ]
+      },
+      options: opts({plugins: {legend: {display: false}}})
+    });
+    // Store raw dates for export
+    c1w.chart.rawDates = dates;
+    // Add click-to-zoom and right-click context menu
+    c1w.classList.add('chart-clickable');
+    c1w.onclick = (e) => { if (!e.target.closest('.export-btn')) openChartModal('c1w', 'MH Total Water Injection'); };
+    setupChartContextMenu('c1w');
+    // Update comparison for WI trend
+    if (wiData.length > 1) {
+      updateComparison('comp-c1w', wiData[0], wiData[wiData.length - 1], 'BWPD');
+    }
+  } else if (c1w && c1w.chart) {
+    c1w.chart.data.labels = labels;
+    c1w.chart.data.datasets[0].data = wiData;
+    c1w.chart.rawDates = dates;
+    c1w.chart.update();
+    // Update comparison for WI trend
+    if (wiData.length > 1) {
+      updateComparison('comp-c1w', wiData[0], wiData[wiData.length - 1], 'BWPD');
+    }
+  }
+
+  // Complex-wise Production Trends
+  await loadComplexWiseTrends(startDate, endDate);
+}
+
+// Load complex-wise production trends for all 8 complexes over the date range
+async function loadComplexWiseTrends(startDateParam = null, endDateParam = null) {
+  const startDate = startDateParam || document.getElementById('start').value;
+  const endDate = endDateParam || document.getElementById('end').value;
+
+  console.log('loadComplexWiseTrends called with:', {startDate, endDate});
+
+  // Fetch complex-wise trend data from the API endpoint
+  const response = await fetchAPI('/production/complex/trends', {start_date: startDate, end_date: endDate});
+  console.log('API response:', response);
+
+  if (!response) {
+    console.error('No data received from API');
+    return;
+  }
+
+  const complexData = response;
+  console.log('Complex data received:', Object.keys(complexData));
+
+  const complexes = [
+    {id: 'MHN', name: 'MHN', color: '#10b981', area: 'North'},
+    {id: 'NQO', name: 'NQO', color: '#34d399', area: 'North'},
+    {id: 'BHS', name: 'BHS', color: '#f59e0b', area: 'South'},
+    {id: 'SCA', name: 'SCA', color: '#fbbf24', area: 'South'},
+    {id: 'SHP', name: 'SHP', color: '#0ea5e9', area: 'South'},
+    {id: 'ICP', name: 'ICP', color: '#38bdf8', area: 'South'},
+    {id: 'CL7', name: 'CL-7', color: '#8b5cf6', area: 'Marginal'},
+    {id: 'WO16', name: 'WO-16', color: '#a78bfa', area: 'Marginal'}
+  ];
+
+  // Create area charts for each complex
+  complexes.forEach(cx => {
+    const canvas = document.getElementById(`cx${cx.id}`);
+    console.log(`Processing ${cx.id}, canvas found:`, !!canvas);
+
+    if (!canvas) return;
+
+    const cxData = complexData[cx.id];
+    if (!cxData) {
+      console.error(`No data for complex ${cx.id}`);
+      return;
+    }
+
+    console.log(`${cx.id} has ${cxData.dates.length} dates, ${cxData.oil.length} oil values`);
+
+    // Format dates for display
+    const labels = cxData.dates.map(d => {
+      const dt = new Date(d);
+      return dt.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+    });
+
+    if (canvas.chart) {
+      // Update existing chart
+      console.log(`Updating existing chart for ${cx.id}`);
+      canvas.chart.data.labels = labels;
+      canvas.chart.data.datasets[0].data = cxData.oil;
+      canvas.chart.update();
+      // Update comparison
+      if (cxData.oil.length > 1) {
+        updateComparison(`comp-cx${cx.id}`, cxData.oil[0], cxData.oil[cxData.oil.length - 1], 'BOPD');
+      }
+    } else {
+      // Create new area chart with gradient
+      console.log(`Creating new chart for ${cx.id}`);
+      const ctx = canvas.getContext('2d');
+      const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+      gradient.addColorStop(0, cx.color + '40'); // 25% opacity at top
+      gradient.addColorStop(1, cx.color + '08'); // 3% opacity at bottom
+
+      canvas.chart = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: cx.name + ' Oil (BOPD)',
+            data: cxData.oil,
+            borderColor: cx.color,
+            backgroundColor: gradient,
+            fill: true,
+            tension: 0.4,
+            borderWidth: 2.5,
+            pointRadius: 3,
+            pointBackgroundColor: cx.color,
+            pointBorderColor: '#fff',
+            pointBorderWidth: 1.5,
+            pointHoverRadius: 5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          onClick: (event, elements) => {
+            if (elements.length > 0) {
+              const dataIndex = elements[0].index;
+              const label = labels[dataIndex];
+              const value = cxData.oil[dataIndex];
+              alert(`Date: ${label}\n${cx.name} Oil: ${Math.round(value).toLocaleString()} BOPD`);
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              enabled: true,
+              mode: 'index',
+              intersect: false,
+              backgroundColor: isDark() ? 'rgba(30,30,30,0.95)' : 'rgba(255,255,255,0.95)',
+              titleColor: isDark() ? '#fff' : '#000',
+              bodyColor: isDark() ? '#fff' : '#000',
+              borderColor: isDark() ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+              borderWidth: 1,
+              padding: 10,
+              callbacks: {
+                title: function(context) {
+                  return 'Date: ' + context[0].label;
+                },
+                label: function(context) {
+                  return cx.name + ': ' + Math.round(context.parsed.y).toLocaleString() + ' BOPD';
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: '#000', font: { size: 9, weight: 'bold' } },
+              border: { color: '#000', width: 1.5 }
+            },
+            y: {
+              grid: { color: grid() },
+              ticks: { color: '#000', font: { size: 9, weight: 'bold' } },
+              border: { color: '#000', width: 1.5 }
+            }
+          }
+        }
+      });
+      console.log(`Chart created for ${cx.id}`);
+      // Add click-to-zoom and right-click context menu
+      canvas.classList.add('chart-clickable');
+      canvas.onclick = (e) => { if (!e.target.closest('.export-btn')) openChartModal(`cx${cx.id}`, cx.name + ' Oil Production'); };
+      setupChartContextMenu(`cx${cx.id}`);
+      // Update comparison for newly created chart
+      if (cxData.oil.length > 1) {
+        updateComparison(`comp-cx${cx.id}`, cxData.oil[0], cxData.oil[cxData.oil.length - 1], 'BOPD');
+      }
+    }
+  });
+
+  // Create gas charts for each complex
+  complexes.forEach(cx => {
+    const canvasGas = document.getElementById(`cx${cx.id}Gas`);
+    console.log(`Processing ${cx.id} Gas, canvas found:`, !!canvasGas);
+
+    if (!canvasGas) return;
+
+    const cxData = complexData[cx.id];
+    if (!cxData || !cxData.gas) {
+      console.error(`No gas data for complex ${cx.id}`);
+      return;
+    }
+
+    console.log(`${cx.id} has ${cxData.dates.length} dates, ${cxData.gas.length} gas values`);
+
+    // Format dates for display
+    const labels = cxData.dates.map(d => {
+      const dt = new Date(d);
+      return dt.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+    });
+
+    if (canvasGas.chart) {
+      // Update existing chart
+      console.log(`Updating existing gas chart for ${cx.id}`);
+      canvasGas.chart.data.labels = labels;
+      canvasGas.chart.data.datasets[0].data = cxData.gas;
+      canvasGas.chart.rawDates = cxData.dates;
+      canvasGas.chart.update();
+      // Update comparison
+      if (cxData.gas.length > 1) {
+        updateComparison(`comp-cx${cx.id}Gas`, cxData.gas[0], cxData.gas[cxData.gas.length - 1], 'MMSCMD');
+      }
+    } else {
+      // Create new area chart with gradient
+      console.log(`Creating new gas chart for ${cx.id}`);
+      const ctx = canvasGas.getContext('2d');
+      const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+      gradient.addColorStop(0, cx.color + '40'); // 25% opacity at top
+      gradient.addColorStop(1, cx.color + '08'); // 3% opacity at bottom
+
+      canvasGas.chart = new Chart(canvasGas, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: cx.name + ' Gas (MMSCMD)',
+            data: cxData.gas,
+            borderColor: cx.color,
+            backgroundColor: gradient,
+            fill: true,
+            tension: 0.4,
+            borderWidth: 2.5,
+            pointRadius: 3,
+            pointBackgroundColor: cx.color,
+            pointBorderColor: '#fff',
+            pointBorderWidth: 1.5,
+            pointHoverRadius: 5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          onClick: (event, elements) => {
+            if (elements.length > 0) {
+              const dataIndex = elements[0].index;
+              const label = labels[dataIndex];
+              const value = cxData.gas[dataIndex];
+              alert(`Date: ${label}\n${cx.name} Gas: ${value.toFixed(3)} MMSCMD`);
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              enabled: true,
+              mode: 'index',
+              intersect: false,
+              backgroundColor: isDark() ? 'rgba(30,30,30,0.95)' : 'rgba(255,255,255,0.95)',
+              titleColor: isDark() ? '#fff' : '#000',
+              bodyColor: isDark() ? '#fff' : '#000',
+              borderColor: isDark() ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+              borderWidth: 1,
+              padding: 10,
+              callbacks: {
+                title: function(context) {
+                  return 'Date: ' + context[0].label;
+                },
+                label: function(context) {
+                  return cx.name + ': ' + context.parsed.y.toFixed(3) + ' MMSCMD';
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: '#000', font: { size: 9, weight: 'bold' } },
+              border: { color: '#000', width: 1.5 }
+            },
+            y: {
+              grid: { color: grid() },
+              ticks: {
+                color: '#000',
+                font: { size: 9, weight: 'bold' },
+                callback: function(value) {
+                  return value.toFixed(2);
+                }
+              },
+              border: { color: '#000', width: 1.5 }
+            }
+          }
+        }
+      });
+      // Store raw dates for export
+      canvasGas.chart.rawDates = cxData.dates;
+      console.log(`Gas chart created for ${cx.id}`);
+      // Add click-to-zoom and right-click context menu
+      canvasGas.classList.add('chart-clickable');
+      canvasGas.onclick = (e) => { if (!e.target.closest('.export-btn')) openChartModal(`cx${cx.id}Gas`, cx.name + ' Gas Production'); };
+      setupChartContextMenu(`cx${cx.id}Gas`);
+      // Update comparison for newly created chart
+      if (cxData.gas.length > 1) {
+        updateComparison(`comp-cx${cx.id}Gas`, cxData.gas[0], cxData.gas[cxData.gas.length - 1], 'MMSCMD');
+      }
+    }
+  });
+
+  console.log('loadComplexWiseTrends completed');
+}
+
+// Production Date change handler - updates KPI values for specific date
+async function onProdDateChange() {
+  const prodDate = document.getElementById('prodDate').value;
+
+  // Fetch data for this specific date
+  const summary = await fetchAPI('/dashboard/summary', {start_date: prodDate, end_date: prodDate});
+  if (summary && (summary.production || (summary.data && summary.data.production))) {
+    const prod = summary.production || summary.data.production;
+    document.getElementById('kpi-oil').innerHTML = `${Math.round(prod.total_oil_bopd).toLocaleString()} <span class="kpi-unit">BOPD</span>`;
+    document.getElementById('kpi-gas').innerHTML = `${prod.total_gas_mmscm.toFixed(1)} <span class="kpi-unit">MMSCMD</span>`;
+    document.getElementById('kpi-wi').innerHTML = `${Math.round(prod.total_wi_bwpd).toLocaleString()} <span class="kpi-unit">BWPD</span>`;
+
+    // Display individual performance values
+    const oilPerf = prod.oil_performance_percent || 0;
+    const gasPerf = prod.gas_performance_percent || 0;
+    document.getElementById('kpi-oil-perf').innerHTML = `Performance: ${oilPerf.toFixed(1)}%`;
+    document.getElementById('kpi-oil-perf').className = oilPerf >= 100 ? 'kpi-change up' : (oilPerf >= 90 ? 'kpi-change' : 'kpi-change down');
+    document.getElementById('kpi-gas-perf').innerHTML = `Performance: ${gasPerf.toFixed(1)}%`;
+    document.getElementById('kpi-gas-perf').className = gasPerf >= 100 ? 'kpi-change up' : (gasPerf >= 90 ? 'kpi-change' : 'kpi-change down');
+  }
+
+  // Reload complex-wise chart for the new date
+  await loadComplexWiseProduction();
+
+  // Sync To Date with new Production Date by default
+  const endEl = document.getElementById('end');
+  if (endEl) {
+    endEl.value = prodDate;
+  }
+
+  // If Losses tab is active, refresh losses view
+  const activePanel = document.querySelector('.tab-panel.active');
+  if (activePanel && activePanel.id === 'losses' && typeof filterAndRenderLosses === 'function') {
+    filterAndRenderLosses();
+  }
+
+  // If Flare tab is active, refresh flare view
+  if (activePanel && activePanel.id === 'flare' && typeof loadFlare === 'function') {
+    loadFlare();
+  }
+}
+
+function onDateRangeChange() {
+  const activePanel = document.querySelector('.tab-panel.active');
+  if (activePanel) {
+    if (activePanel.id === 'losses' && typeof filterAndRenderLosses === 'function') {
+      filterAndRenderLosses();
+    } else if (activePanel.id === 'overview' && typeof loadOverview === 'function') {
+      loadOverview();
+    } else if (activePanel.id === 'flare' && typeof loadFlare === 'function') {
+      loadFlare();
+    }
+  }
+}
+
+
+
+
+let lossRawData = { summary: {}, records: [] };
+let lossPieInstances = [];
+
+async function loadLosses() {
+  console.log('loadLosses called, checking if data needs to be loaded...');
+
+  if (lossRawData.records.length === 0) {
+    try {
+      const res = await fetch('losses_data.json?v=' + Date.now());
+      lossRawData = await res.json();
+      console.log(`Loaded ${lossRawData.records.length} loss records from JSON`);
+
+      const catSel = document.getElementById('lossCatFilter');
+      const subCatSel = document.getElementById('lossSubCatFilter');
+      const cplxSel = document.getElementById('lossCplxFilter');
+
+      function updateSubCatDropdown() {
+        const selectedCat = document.getElementById('lossCatFilter').value;
+        const subCatSel = document.getElementById('lossSubCatFilter');
+        const currentSubCat = subCatSel.value;
+        subCatSel.innerHTML = '<option value="">All Sub-Categories</option>';
+
+        const subCats = new Set();
+        lossRawData.records.forEach(r => {
+          if (!selectedCat || r.category === selectedCat) {
+            if (r.sub_category) subCats.add(r.sub_category);
+          }
+        });
+
+        Array.from(subCats).sort().forEach(sc => {
+          const opt = document.createElement('option');
+          opt.value = sc; opt.textContent = sc;
+          subCatSel.appendChild(opt);
+        });
+
+        if (subCats.has(currentSubCat)) {
+          subCatSel.value = currentSubCat;
+        }
+      }
+
+      lossRawData.summary.categories.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat; opt.textContent = cat;
+        catSel.appendChild(opt);
+      });
+      updateSubCatDropdown();
+      lossRawData.summary.complexes.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c; opt.textContent = c;
+        cplxSel.appendChild(opt);
+      });
+
+      if (document.getElementById('lossStartDate') && !document.getElementById('lossStartDate').value) {
+        document.getElementById('lossStartDate').value = lossRawData.summary.min_date || '2026-04-01';
+      }
+      if (document.getElementById('lossEndDate') && !document.getElementById('lossEndDate').value) {
+        document.getElementById('lossEndDate').value = lossRawData.summary.max_date || '2026-11-21';
+      }
+
+      document.getElementById('lossStartDate').addEventListener('change', filterAndRenderLosses);
+      document.getElementById('lossEndDate').addEventListener('change', filterAndRenderLosses);
+      document.getElementById('lossSearch').addEventListener('input', filterAndRenderLosses);
+      document.getElementById('lossCatFilter').addEventListener('change', () => {
+        updateSubCatDropdown();
+        filterAndRenderLosses();
+      });
+      document.getElementById('lossSubCatFilter').addEventListener('change', filterAndRenderLosses);
+      document.getElementById('lossCplxFilter').addEventListener('change', filterAndRenderLosses);
+      document.getElementById('lossMetricSelector').addEventListener('change', filterAndRenderLosses);
+    } catch (e) {
+      console.error("Failed to load losses_data.json:", e);
+    }
+  }
+  filterAndRenderLosses();
+}
+
+function filterAndRenderLosses() {
+  const startD = document.getElementById('start').value;
+  const endD = document.getElementById('end').value;
+  const prodD = document.getElementById('prodDate').value;
+  const searchTxt = document.getElementById('lossSearch').value.toLowerCase();
+  const catVal = document.getElementById('lossCatFilter').value;
+  const subCatVal = document.getElementById('lossSubCatFilter')?.value || '';
+  const cplxVal = document.getElementById('lossCplxFilter').value;
+
+  const records = lossRawData.records;
+
+  console.log('filterAndRenderLosses called:', {
+    totalRecords: records.length,
+    startD, endD, prodD,
+    searchTxt, catVal, subCatVal, cplxVal
+  });
+
+  // 1. Calculate KPIs for selected Production Date (prodD) vs Yesterday
+  const prodDateObj = new Date(prodD);
+  const yestDateObj = new Date(prodDateObj);
+  yestDateObj.setDate(yestDateObj.getDate() - 1);
+  const yestD = yestDateObj.toISOString().split('T')[0];
+
+  let todayOil = 0, todayGas = 0, todayWi = 0;
+  let yestOil = 0, yestGas = 0, yestWi = 0;
+
+  records.forEach(r => {
+    if (r.date === prodD) {
+      todayOil += r.oil || 0;
+      todayGas += r.gas || 0;
+      todayWi += r.wi || 0;
+    }
+    if (r.date === yestD) {
+      yestOil += r.oil || 0;
+      yestGas += r.gas || 0;
+      yestWi += r.wi || 0;
+    }
+  });
+
+  const diffOil = todayOil - yestOil;
+  const diffGas = todayGas - yestGas;
+  const diffWi = todayWi - yestWi;
+
+  document.getElementById('lossKpiOil').innerHTML = `${todayOil.toLocaleString(undefined, {minimumFractionDigits:1, maximumFractionDigits:1})} <span class="kpi-unit">Bbls</span>`;
+  const oilChgEl = document.getElementById('lossKpiOilChg');
+  oilChgEl.textContent = `vs Yesterday: ${diffOil >= 0 ? '+' : ''}${diffOil.toFixed(1)} Bbls`;
+  oilChgEl.className = diffOil <= 0 ? 'kpi-change up' : 'kpi-change down';
+
+  document.getElementById('lossKpiGas').innerHTML = `${todayGas.toLocaleString(undefined, {minimumFractionDigits:3, maximumFractionDigits:3})} <span class="kpi-unit">MMSCM</span>`;
+  const gasChgEl = document.getElementById('lossKpiGasChg');
+  gasChgEl.textContent = `vs Yesterday: ${diffGas >= 0 ? '+' : ''}${diffGas.toFixed(3)} MMSCM`;
+  gasChgEl.className = diffGas <= 0 ? 'kpi-change up' : 'kpi-change down';
+
+  document.getElementById('lossKpiWi').innerHTML = `${todayWi.toLocaleString(undefined, {minimumFractionDigits:1, maximumFractionDigits:1})} <span class="kpi-unit">Bbls</span>`;
+  const wiChgEl = document.getElementById('lossKpiWiChg');
+  wiChgEl.textContent = `vs Yesterday: ${diffWi >= 0 ? '+' : ''}${diffWi.toFixed(1)} Bbls`;
+  wiChgEl.className = diffWi <= 0 ? 'kpi-change up' : 'kpi-change down';
+
+  // 2. Filtered records for table & trends
+  const lossStart = document.getElementById('lossStartDate')?.value || startD;
+  const lossEnd = document.getElementById('lossEndDate')?.value || endD;
+
+  const filtered = records.filter(r => {
+    if (lossStart && r.date < lossStart) return false;
+    if (lossEnd && r.date > lossEnd) return false;
+    if (cplxVal && r.complex !== cplxVal) return false;
+    if (catVal && r.category !== catVal) return false;
+    if (subCatVal && r.sub_category !== subCatVal) return false;
+    if (searchTxt) {
+      const txt = (r.remarks + ' ' + (r.short_remarks || '') + ' ' + r.complex + ' ' + r.category).toLowerCase();
+      if (!txt.includes(searchTxt)) return false;
+    }
+    return true;
+  });
+
+  console.log('Filtered records:', filtered.length, 'out of', records.length);
+
+  // Debug: Log if tbody exists
+  const tbody = document.getElementById('lossTableBody');
+  console.log('tbody element:', tbody ? 'FOUND' : 'NOT FOUND');
+
+  renderLossTrends(records, startD, endD);
+  renderLossHistograms(records, startD, endD);
+  renderLossTable(filtered);
+}
+
+function renderLossHistograms(records, startD, endD) {
+  const filtered = records.filter(r => {
+    if (startD && r.date < startD) return false;
+    if (endD && r.date > endD) return false;
+    return true;
+  });
+
+  lossPieInstances.forEach(ch => { if (ch) { try { ch.destroy(); } catch(e){} } });
+  lossPieInstances = [];
+
+  const metrics = [
+    { key: 'oil', canvasId: 'lossOilPieChart' },
+    { key: 'gas', canvasId: 'lossGasPieChart' },
+    { key: 'wi',  canvasId: 'lossWiPieChart' }
+  ];
+
+  const palette = ['#dc2626', '#f97316', '#d97706', '#0284c7', '#8b5cf6', '#10b981', '#64748b'];
+
+  metrics.forEach(m => {
+    const catMap = {};
+    filtered.forEach(r => {
+      const val = r[m.key] || 0;
+      const cat = r.category || 'Other';
+      catMap[cat] = (catMap[cat] || 0) + val;
+    });
+
+    const labels = Object.keys(catMap).sort();
+    const values = labels.map(l => catMap[l]);
+
+    const el = document.getElementById(m.canvasId);
+    if (el) {
+      if (el.chart) {
+        try { el.chart.destroy(); } catch(e) {}
+        el.chart = null;
+      }
+      el.chart = new Chart(el, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: values,
+            backgroundColor: palette.slice(0, labels.length),
+            borderWidth: 1
+          }]
+        },
+        options: opts({
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { boxWidth: 10, font: { size: 10 } }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                  const val = ctx.parsed;
+                  const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                  return ` ${ctx.label}: ${val.toLocaleString()} (${pct}%)`;
+                }
+              }
+            }
+          },
+          cutout: '55%'
+        })
+      });
+      lossPieInstances.push(el.chart);
+    }
+  });
+}
+
+function renderLossTrends(records, startD, endD) {
+  const dailyMap = {};
+  records.forEach(r => {
+    if (startD && r.date < startD) return;
+    if (endD && r.date > endD) return;
+    if (!dailyMap[r.date]) dailyMap[r.date] = { oil: 0, gas: 0, wi: 0 };
+    dailyMap[r.date].oil += r.oil || 0;
+    dailyMap[r.date].gas += r.gas || 0;
+    dailyMap[r.date].wi += r.wi || 0;
+  });
+
+  const dates = Object.keys(dailyMap).sort();
+  const oilVals = dates.map(d => dailyMap[d].oil);
+  const gasVals = dates.map(d => dailyMap[d].gas);
+  const wiVals = dates.map(d => dailyMap[d].wi);
+
+  const formatDates = dates.map(d => {
+    const dt = new Date(d);
+    return dt.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+  });
+
+  const c1 = document.getElementById('lossTrendOil');
+  if (c1) {
+    if (c1.chart) c1.chart.destroy();
+    c1.chart = new Chart(c1, {
+      type: 'line',
+      data: {
+        labels: formatDates,
+        datasets: [{label: 'Oil Loss (Bbls)', data: oilVals, borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,0.1)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0}]
+      },
+      options: opts({plugins: {legend: {display: false}}})
+    });
+  }
+
+  const c2 = document.getElementById('lossTrendGas');
+  if (c2) {
+    if (c2.chart) c2.chart.destroy();
+    c2.chart = new Chart(c2, {
+      type: 'line',
+      data: {
+        labels: formatDates,
+        datasets: [{label: 'Gas Loss (MMSCM)', data: gasVals, borderColor: '#0284c7', backgroundColor: 'rgba(2,132,199,0.1)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0}]
+      },
+      options: opts({plugins: {legend: {display: false}}})
+    });
+  }
+
+  const c3 = document.getElementById('lossTrendWi');
+  if (c3) {
+    if (c3.chart) c3.chart.destroy();
+    c3.chart = new Chart(c3, {
+      type: 'line',
+      data: {
+        labels: formatDates,
+        datasets: [{label: 'WI Loss (Bbls)', data: wiVals, borderColor: '#7c3aed', backgroundColor: 'rgba(124,58,237,0.1)', fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0}]
+      },
+      options: opts({plugins: {legend: {display: false}}})
+    });
+  }
+
+  // Render complex-wise breakdown
+  const metric = document.getElementById('lossMetricSelector')?.value || 'oil';
+  renderComplexBreakdown(records, startD, endD, metric);
+}
+
+function renderComplexBreakdown(records, startD, endD, metric = 'oil') {
+  // Filter records for the date range
+  const filtered = records.filter(r => {
+    if (startD && r.date < startD) return false;
+    if (endD && r.date > endD) return false;
+    return true;
+  });
+
+  // Define complexes based on metric
+  const complexesByMetric = {
+    'oil': ['MHN', 'NQO', 'BHS', 'SCA', 'SHP', 'ICP', 'CL-7', 'WO-16'],
+    'gas': ['MHN', 'NQO', 'BHS', 'SCA', 'SHP', 'ICP', 'CL-7', 'WO-16'],
+    'wi': ['WIN', 'MNW', 'WIS', 'ICW', 'SHW', 'HRW', 'NLW']
+  };
+
+  const metricLabels = {
+    'oil': 'Oil Loss',
+    'gas': 'Gas Loss',
+    'wi': 'WI Loss'
+  };
+
+  const metricUnits = {
+    'oil': 'bbls',
+    'gas': 'MMSCM',
+    'wi': 'bbls'
+  };
+
+  const complexes = complexesByMetric[metric] || complexesByMetric['oil'];
+  const categories = lossRawData.summary.categories;
+  const subCategories = lossRawData.summary.sub_categories;
+  const palette = ['#dc2626', '#f97316', '#d97706', '#0284c7', '#8b5cf6', '#10b981', '#06b6d4', '#a855f7'];
+
+  // Get or create container
+  const container = document.getElementById('complexBreakdownContainer');
+  if (!container) return;
+
+  // Clear existing content
+  container.innerHTML = '';
+
+  // Create HTML for each complex
+  complexes.forEach(cplx => {
+    const cplxRecords = filtered.filter(r => r.complex === cplx);
+    if (cplxRecords.length === 0) return;
+
+    // Normalize complex name for canvas IDs (remove hyphens)
+    const cplxId = cplx.replace(/-/g, '');
+
+    // Create complex section
+    const complexDiv = document.createElement('div');
+    complexDiv.style.marginBottom = '20px';
+    complexDiv.innerHTML = `
+      <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 10px;">${cplx}</div>
+      <div class="charts-row" style="grid-template-columns: 2fr 1fr 1fr; gap: 12px;">
+        <div class="chart-box">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <div class="chart-title" style="font-size: 11px;">${metricLabels[metric]} Trend</div>
+            <button class="export-btn" onclick="exportChartData('lossComplex${cplxId}Trend', '${cplx}_${metric}_Trend')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap" style="height: 180px;"><canvas id="lossComplex${cplxId}Trend"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <div class="chart-title" style="font-size: 11px;">By Category</div>
+            <button class="export-btn" onclick="exportChartData('lossComplex${cplxId}Cat', '${cplx}_${metric}_Category')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap" style="height: 180px;"><canvas id="lossComplex${cplxId}Cat"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <div class="chart-title" style="font-size: 11px;">By Sub-Category</div>
+            <button class="export-btn" onclick="exportChartData('lossComplex${cplxId}Subcat', '${cplx}_${metric}_Subcategory')" title="Export to Excel"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAA+klEQVR4nO3aSwrCMBSF4aOjbiBB3bmbcAc6ciRSxIq6m4iQTMSmj0Rzbzg/dFjaDxrSXgoAJwCu0NECWCBTrvDR5IY0+F/vaxHSFyEJERKLkIQIiUWItBwhwnKE/LYtgAMAox2y9/fVAbCaIQbA1d/bA8BaK2QyRjIkYLoxGOkQ+DUSMM8+jAbIN8wGSiEBc+vDaIJEMXMh73nURcA46R72mbmQpR+wqYdU82iVyNaw2O3QXqIBYsfs7tIhpoZXFFPDS6P5QKyGTpAKOdbyYbXzGPWfupMjRFqOkPlVM8RuCIlESEKExCIkIUJilR7nZIO0BRHnXD+evQAqOHQ6dRKPlQAAAABJRU5ErkJggg==" alt="Export"></button>
+          </div>
+          <div class="chart-wrap" style="height: 180px;"><canvas id="lossComplex${cplxId}Subcat"></canvas></div>
+        </div>
+      </div>
+    `;
+    container.appendChild(complexDiv);
+  });
+
+  // Now render charts for each complex
+  complexes.forEach(cplx => {
+    const cplxRecords = filtered.filter(r => r.complex === cplx);
+    if (cplxRecords.length === 0) return;
+
+    // Normalize complex name for canvas IDs (remove hyphens)
+    const cplxId = cplx.replace(/-/g, '');
+
+    // 1. Render trend chart for this complex
+    const dailyMap = {};
+    cplxRecords.forEach(r => {
+      if (!dailyMap[r.date]) dailyMap[r.date] = 0;
+      dailyMap[r.date] += r[metric] || 0;
+    });
+
+    const dates = Object.keys(dailyMap).sort();
+    const vals = dates.map(d => dailyMap[d]);
+    const formatDates = dates.map(d => {
+      const dt = new Date(d);
+      return dt.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+    });
+
+    const trendCanvas = document.getElementById(`lossComplex${cplxId}Trend`);
+    if (trendCanvas) {
+      if (trendCanvas.chart) trendCanvas.chart.destroy();
+      trendCanvas.chart = new Chart(trendCanvas, {
+        type: 'line',
+        data: {
+          labels: formatDates,
+          datasets: [{
+            label: `${cplx} ${metricLabels[metric]}`,
+            data: vals,
+            borderColor: '#16a34a',
+            backgroundColor: 'rgba(22,163,74,0.1)',
+            fill: true,
+            tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 0
+          }]
+        },
+        options: opts({plugins: {legend: {display: false}}})
+      });
+    }
+
+    // 2. Render category pie chart
+    const catMap = {};
+    categories.forEach(cat => catMap[cat] = 0);
+    cplxRecords.forEach(r => {
+      const cat = r.category || 'Others';
+      catMap[cat] = (catMap[cat] || 0) + (r[metric] || 0);
+    });
+
+    const catValues = categories.map(cat => catMap[cat] || 0);
+    const catTotal = catValues.reduce((a, b) => a + b, 0);
+
+    const catCanvas = document.getElementById(`lossComplex${cplxId}Cat`);
+    if (catCanvas && catTotal > 0) {
+      if (catCanvas.chart) catCanvas.chart.destroy();
+      catCanvas.chart = new Chart(catCanvas, {
+        type: 'doughnut',
+        data: {
+          labels: categories,
+          datasets: [{
+            data: catValues,
+            backgroundColor: palette.slice(0, categories.length),
+            borderWidth: 1,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'right',
+              labels: {
+                font: {size: 10},
+                boxWidth: 12,
+                padding: 8,
+                generateLabels: function(chart) {
+                  const data = chart.data;
+                  return data.labels.map((label, i) => {
+                    const value = data.datasets[0].data[i];
+                    const pct = catTotal > 0 ? ((value / catTotal) * 100).toFixed(1) : 0;
+                    return {
+                      text: `${label}: ${pct}%`,
+                      fillStyle: data.datasets[0].backgroundColor[i],
+                      hidden: value === 0
+                    };
+                  });
+                }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  const pct = catTotal > 0 ? ((ctx.parsed / catTotal) * 100).toFixed(1) : 0;
+                  const unit = metricUnits[metric];
+                  return `${ctx.label}: ${ctx.parsed.toFixed(metric === 'gas' ? 3 : 1)} ${unit} (${pct}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // 3. Render sub-category pie chart
+    const subCatMap = {};
+    subCategories.forEach(sc => subCatMap[sc] = 0);
+    cplxRecords.forEach(r => {
+      const sc = r.sub_category || 'Others';
+      subCatMap[sc] = (subCatMap[sc] || 0) + (r[metric] || 0);
+    });
+
+    const subCatValues = subCategories.map(sc => subCatMap[sc] || 0);
+    const subCatTotal = subCatValues.reduce((a, b) => a + b, 0);
+
+    const subCatCanvas = document.getElementById(`lossComplex${cplxId}Subcat`);
+    if (subCatCanvas && subCatTotal > 0) {
+      if (subCatCanvas.chart) subCatCanvas.chart.destroy();
+      subCatCanvas.chart = new Chart(subCatCanvas, {
+        type: 'doughnut',
+        data: {
+          labels: subCategories,
+          datasets: [{
+            data: subCatValues,
+            backgroundColor: palette,
+            borderWidth: 1,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'right',
+              labels: {
+                font: {size: 10},
+                boxWidth: 12,
+                padding: 8,
+                generateLabels: function(chart) {
+                  const data = chart.data;
+                  return data.labels.map((label, i) => {
+                    const value = data.datasets[0].data[i];
+                    const pct = subCatTotal > 0 ? ((value / subCatTotal) * 100).toFixed(1) : 0;
+                    return {
+                      text: `${label}: ${pct}%`,
+                      fillStyle: data.datasets[0].backgroundColor[i],
+                      hidden: value === 0
+                    };
+                  });
+                }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  const pct = subCatTotal > 0 ? ((ctx.parsed / subCatTotal) * 100).toFixed(1) : 0;
+                  const unit = metricUnits[metric];
+                  return `${ctx.label}: ${ctx.parsed.toFixed(metric === 'gas' ? 3 : 1)} ${unit} (${pct}%)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+  });
+}
+
+
+function renderLossPies(records, prodD) {
+  const grid = document.getElementById('lossPieGrid');
+  grid.innerHTML = '';
+
+  lossPieInstances.forEach(chart => chart.destroy());
+  lossPieInstances = [];
+
+  const dateRecords = records.filter(r => r.date === prodD);
+
+  const cplxMap = {};
+  dateRecords.forEach(r => {
+    if (!cplxMap[r.complex]) cplxMap[r.complex] = {};
+    const cat = r.category;
+    cplxMap[r.complex][cat] = (cplxMap[r.complex][cat] || 0) + (r.oil || 0);
+  });
+
+  const categories = lossRawData.summary.categories;
+  const palette = ['#dc2626', '#f97316', '#d97706', '#0284c7', '#8b5cf6', '#10b981'];
+
+  Object.keys(cplxMap).sort().forEach(cplx => {
+    const catData = cplxMap[cplx];
+    const totalOil = Object.values(catData).reduce((a, b) => a + b, 0);
+    if (totalOil <= 0) return;
+
+    const box = document.createElement('div');
+    box.style.cssText = "background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; align-items: center;";
+    box.innerHTML = `
+      <div style="font-weight: 700; font-size: 13px; margin-bottom: 8px; color: var(--text);">${cplx} <span style="font-size: 11px; font-weight: 500; color: var(--text-muted);">(${totalOil.toFixed(1)} Bbls)</span></div>
+      <div style="width: 160px; height: 160px; position: relative;"><canvas></canvas></div>
+    `;
+    const canvas = box.querySelector('canvas');
+    grid.appendChild(box);
+
+    const labels = categories;
+    const values = labels.map(cat => catData[cat] || 0);
+
+    const pieChart = new Chart(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values,
+          backgroundColor: palette.slice(0, labels.length),
+          borderWidth: 1,
+          borderColor: isDark() ? '#1e293b' : '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                return ` ${ctx.label}: ${ctx.parsed.toFixed(1)} Bbls`;
+              }
+            }
+          }
+        }
+      }
+    });
+    lossPieInstances.push(pieChart);
+  });
+}
+
+async function exportLossTableData() {
+  const lossStart = document.getElementById('lossStartDate')?.value || document.getElementById('start').value;
+  const lossEnd = document.getElementById('lossEndDate')?.value || document.getElementById('end').value;
+  const searchTxt = document.getElementById('lossSearch').value.toLowerCase();
+  const catVal = document.getElementById('lossCatFilter').value;
+  const subCatVal = document.getElementById('lossSubCatFilter')?.value || '';
+  const cplxVal = document.getElementById('lossCplxFilter').value;
+
+  const records = lossRawData.records;
+
+  // Apply current active filters
+  const filtered = records.filter(r => {
+    if (lossStart && r.date < lossStart) return false;
+    if (lossEnd && r.date > lossEnd) return false;
+    if (cplxVal && r.complex !== cplxVal) return false;
+    if (catVal && r.category !== catVal) return false;
+    if (subCatVal && r.sub_category !== subCatVal) return false;
+    if (searchTxt) {
+      const txt = (r.remarks + ' ' + (r.short_remarks || '') + ' ' + r.complex + ' ' + r.category).toLowerCase();
+      if (!txt.includes(searchTxt)) return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    alert('No data available to export for the current filters.');
+    return;
+  }
+
+  // Format headers and rows identical to the table
+  const exportData = [
+    ['Date', 'Complex', 'Category', 'Sub-category', 'Oil Loss (Bbls)', 'Gas Loss (MMSCM)', 'WI Loss (Bbls)', 'Remarks']
+  ];
+
+  filtered.forEach(r => {
+    exportData.push([
+      r.date,
+      r.complex,
+      r.category,
+      r.sub_category || '',
+      r.oil !== null ? r.oil : '',
+      r.gas !== null ? r.gas : '',
+      r.wi !== null ? r.wi : '',
+      r.remarks || ''
+    ]);
+  });
+
+  const exportFilename = `Detailed_Loss_Records_${new Date().toISOString().split('T')[0]}`;
+
+  try {
+    const response = await fetch('http://localhost:5001/api/export/chart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        data: exportData,
+        filename: exportFilename
+      })
+    });
+
+    if (!response.ok) throw new Error('Backend export returned ' + response.status);
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = exportFilename + '.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  } catch (error) {
+    console.warn('Backend export failed, falling back to client-side XLSX:', error);
+    if (typeof XLSX !== 'undefined') {
+      const ws = XLSX.utils.aoa_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Loss Records");
+      XLSX.writeFile(wb, exportFilename + '.xlsx');
+    } else {
+      alert('Failed to export data. Please check backend server.');
+    }
+  }
+}
+
+async function exportComplexFlareData() {
+  const prodDate = document.getElementById('prodDate').value;
+
+  const dailyRes = await fetchAPI('/flare/production', { date: prodDate });
+
+  if (!dailyRes || !Array.isArray(dailyRes) || dailyRes.length === 0) {
+    alert('No flare data available to export.');
+    return;
+  }
+
+  // Format production date as dd-mm-yyyy
+  const prodDateParts = prodDate.split('-');
+  const formattedProdDate = `${prodDateParts[2]}-${prodDateParts[1]}-${prodDateParts[0]}`;
+
+  const exportData = [
+    [`Production Date: ${formattedProdDate}`],
+    ['Complex', 'Flare (MMSCMD)'],
+  ];
+
+  dailyRes.forEach(c => {
+    exportData.push([c.complex, c.flare_mmscm]);
+  });
+
+  const exportFilename = `Complex_Flare_${formattedProdDate.replace(/\//g, '-')}`;
+
+  try {
+    const response = await fetch('http://localhost:5001/api/export/chart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        data: exportData,
+        filename: exportFilename
+      })
+    });
+
+    if (!response.ok) throw new Error('Backend export returned ' + response.status);
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = exportFilename + '.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  } catch (error) {
+    console.warn('Backend export failed, falling back to client-side XLSX:', error);
+    if (typeof XLSX !== 'undefined') {
+      const ws = XLSX.utils.aoa_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Complex Flare");
+      XLSX.writeFile(wb, exportFilename + '.xlsx');
+    } else {
+      alert('Failed to export data. Please check backend server.');
+    }
+  }
+}
+
+function renderLossTable(filtered) {
+  console.log('renderLossTable called with', filtered.length, 'records');
+
+  const tbody = document.getElementById('lossTableBody');
+  if (!tbody) {
+    console.error('lossTableBody element not found');
+    return;
+  }
+
+  tbody.innerHTML = '';
+
+  const countEl = document.getElementById('lossTableCount');
+  if (countEl) {
+    countEl.textContent = filtered.length.toLocaleString();
+    console.log('Table count set to', filtered.length);
+  } else {
+    console.error('lossTableCount element not found');
+  }
+
+  // Render all records
+  let count = 0;
+  filtered.forEach(r => {
+    count++;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${formatDateDDMMYYYY(r.date)}</td>
+      <td><strong>${r.complex}</strong></td>
+      <td>${r.category}</td>
+      <td>${r.sub_category || ''}</td>
+      <td style="color: var(--oil);">${r.oil !== null && r.oil !== undefined ? r.oil.toLocaleString() : '-'}</td>
+      <td style="color: var(--gas);">${r.gas !== null && r.gas !== undefined ? r.gas.toLocaleString(undefined, {minimumFractionDigits:3}) : '-'}</td>
+      <td style="color: var(--wi);">${r.wi !== null && r.wi !== undefined ? r.wi.toLocaleString() : '-'}</td>
+      <td style="max-width: 400px; white-space: normal; font-size: 11px; color: var(--text-muted);">${r.remarks}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  console.log('Rendered', count, 'table rows');
+}
+
+async function loadFlare() {
+  const startDate = document.getElementById('start').value;
+  const endDate = document.getElementById('end').value;
+  const prodDate = document.getElementById('prodDate').value;
+
+  // Fetch flare production data for the selected production date
+  const dailyRes = await fetchAPI('/flare/production', { date: prodDate });
+
+  if (dailyRes && Array.isArray(dailyRes)) {
+    const totalToday = dailyRes.reduce((sum, c) => sum + c.flare_mmscm, 0);
+
+    // Calculate yesterday's date for comparison
+    const prodDateObj = new Date(prodDate);
+    prodDateObj.setDate(prodDateObj.getDate() - 1);
+    const yestDateStr = prodDateObj.toISOString().split('T')[0];
+
+    const yestRes = await fetchAPI('/flare/production', { date: yestDateStr });
+    const totalYest = yestRes ? yestRes.reduce((sum, c) => sum + c.flare_mmscm, 0) : 0;
+    const diff = totalToday - totalYest;
+
+    // Update KPIs
+    document.getElementById('flareKpiTotal').innerHTML = `${totalToday.toFixed(4)} <span class="kpi-unit">MMSCMD</span>`;
+    const chgEl = document.getElementById('flareKpiTotalChg');
+    chgEl.textContent = `vs Yesterday: ${diff >= 0 ? '+' : ''}${diff.toFixed(4)} MMSCMD`;
+    chgEl.className = diff <= 0 ? 'kpi-change up' : 'kpi-change down';
+
+    // Highest flaring complex
+    let highest = null;
+    dailyRes.forEach(c => {
+      if (!highest || c.flare_mmscm > highest.flare_mmscm) {
+        highest = c;
+      }
+    });
+
+    if (highest) {
+      document.getElementById('flareKpiHighest').textContent = highest.complex;
+      document.getElementById('flareKpiHighestVal').textContent = `${highest.flare_mmscm.toFixed(4)} MMSCMD`;
+    }
+
+    // Render complex flare bar chart (histogram) for production date
+    const barCanvas = document.getElementById('flareBarChart');
+    if (barCanvas) {
+      if (barCanvas.chart) barCanvas.chart.destroy();
+
+      const labels = dailyRes.map(c => c.complex);
+      const values = dailyRes.map(c => c.flare_mmscm);
+      const colors = ['#ea580c', '#f97316', '#d97706', '#ca8a04', '#b45309', '#dc2626', '#991b1b'];
+
+      barCanvas.chart = new Chart(barCanvas, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: `Flare (MMSCM)`,
+            data: values,
+            backgroundColor: colors,
+            borderRadius: 4,
+            borderWidth: 1,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              enabled: true,
+              callbacks: {
+                label: function(ctx) {
+                  return `${ctx.label}: ${ctx.parsed.y.toFixed(4)} MMSCM`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              title: { display: true, text: 'Complex', color: '#000', font: { size: 11, weight: 'bold' } },
+              ticks: { color: '#000', font: { size: 9, weight: 'bold' } },
+              grid: { color: 'rgba(0,0,0,0.06)' }
+            },
+            y: {
+              title: { display: true, text: 'Flare (MMSCM)', color: '#000', font: { size: 11, weight: 'bold' } },
+              ticks: { color: '#000', font: { size: 9 } },
+              grid: { color: 'rgba(0,0,0,0.06)' },
+              beginAtZero: true
+            }
+          },
+          animation: { duration: 0 }
+        }
+      });
+    }
+  }
+
+  // Fetch flare trends for date range
+  const trendsRes = await fetchAPI('/flare/trends', { start_date: startDate, end_date: endDate });
+
+  if (trendsRes) {
+    const dates = trendsRes.dates || [];
+    const totalVals = trendsRes['MH Asset Total'] || [];
+
+    // Update range avg KPIs
+    const sumTotal = totalVals.reduce((a, b) => a + b, 0);
+    const avgTotal = dates.length > 0 ? (sumTotal / dates.length) : 0;
+    document.getElementById('flareKpiAvg').innerHTML = `${avgTotal.toFixed(4)} <span class="kpi-unit">MMSCM/D</span>`;
+    document.getElementById('flareKpiDateRange').textContent = `Cumulative: ${sumTotal.toFixed(3)} MMSCM`;
+
+    const formattedDates = dates.map(d => {
+      const dt = new Date(d);
+      return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
+
+    // Render total flare trend line chart
+    const totalCanvas = document.getElementById('flareTrendTotal');
+    if (totalCanvas) {
+      if (totalCanvas.chart) totalCanvas.chart.destroy();
+
+      totalCanvas.chart = new Chart(totalCanvas, {
+        type: 'line',
+        data: {
+          labels: formattedDates,
+          datasets: [{
+            label: 'Total Flare (MMSCM)',
+            data: totalVals,
+            borderColor: '#ea580c',
+            backgroundColor: 'rgba(234, 88, 12, 0.12)',
+            fill: true,
+            tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  return `${ctx.label}: ${ctx.parsed.y.toFixed(4)} MMSCM`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { color: '#000', font: { size: 8 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
+            y: { ticks: { color: '#000', font: { size: 9 } }, grid: { color: 'rgba(0,0,0,0.06)' }, beginAtZero: true }
+          },
+          animation: { duration: 0 }
+        }
+      });
+    }
+
+    // Individual complex flare trends (line charts)
+    const complexMap = [
+      { id: 'cxMHNFlare', key: 'MHN', label: 'MHN', color: '#ea580c' },
+      { id: 'cxNQOFlare', key: 'NQO', label: 'NQO', color: '#f97316' },
+      { id: 'cxBHSFlare', key: 'BHS', label: 'BHS', color: '#d97706' },
+      { id: 'cxSCAFlare', key: 'SCA', label: 'SCA', color: '#ca8a04' },
+      { id: 'cxSHPWO16Flare', key: 'SHP + WO-16', label: 'SHP + WO-16', color: '#b45309' },
+      { id: 'cxICPFlare', key: 'ICP', label: 'ICP', color: '#b91c1c' },
+      { id: 'cxCL7Flare', key: 'CL-7', label: 'CL-7', color: '#c2410c' }
+    ];
+
+    complexMap.forEach(cx => {
+      const canvas = document.getElementById(cx.id);
+      if (!canvas) return;
+      if (canvas.chart) canvas.chart.destroy();
+
+      const vals = trendsRes[cx.key] || [];
+
+      canvas.chart = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: formattedDates,
+          datasets: [{
+            label: `${cx.label} Flare`,
+            data: vals,
+            borderColor: cx.color,
+            backgroundColor: cx.color + '18',
+            fill: true,
+            tension: 0.3,
+            borderWidth: 1.5,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  return `${ctx.label}: ${ctx.parsed.y.toFixed(4)} MMSCM`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { color: '#000', font: { size: 7 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
+            y: { ticks: { color: '#000', font: { size: 8 } }, grid: { color: 'rgba(0,0,0,0.06)' }, beginAtZero: true }
+          },
+          animation: { duration: 0 }
+        }
+      });
+    });
+  }
+}
+
+async function loadGains() {
+  const startDate = document.getElementById('start').value;
+  const endDate = document.getElementById('end').value;
+  const prodDate = document.getElementById('prodDate').value;
+
+  const gainsRes = await fetchAPI('/gain/production', { date: prodDate });
+
+  if (gainsRes && gainsRes.data) {
+    const totalOil = gainsRes.total_oil_gain || 0;
+    const totalGas = gainsRes.total_gas_gain || 0;
+    const totalWi = gainsRes.total_wi_gain || 0;
+
+    document.getElementById('gainKpiOil').innerHTML = `${totalOil.toFixed(1)} <span class="kpi-unit">Bbls</span>`;
+    document.getElementById('gainKpiGas').innerHTML = `${totalGas.toFixed(4)} <span class="kpi-unit">MMSCM</span>`;
+    document.getElementById('gainKpiWi').innerHTML = `${totalWi.toFixed(1)} <span class="kpi-unit">Bbls</span>`;
+
+    const trendsRes = await fetchAPI('/gain/trends', { start_date: startDate, end_date: endDate });
+
+    if (trendsRes && trendsRes.dates) {
+      const dates = trendsRes.dates;
+      const formattedDates = dates.map(d => {
+        const dt = new Date(d);
+        return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      });
+
+      const complexMap = [
+        { id: 'cxMHNGain', key: 'MHN', label: 'MHN', color: '#10b981' },
+        { id: 'cxNQOGain', key: 'NQO', label: 'NQO', color: '#22c55e' },
+        { id: 'cxSHPGain', key: 'SHP', label: 'SHP', color: '#84cc16' },
+        { id: 'cxICPGain', key: 'ICP', label: 'ICP', color: '#14b8a6' },
+        { id: 'cxCL7Gain', key: 'CL-7', label: 'CL-7', color: '#14b8a6' },
+        { id: 'cxSHPWO16Gain', key: 'SHP + WO-16', label: 'SHP + WO-16', color: '#22c55e' }
+      ];
+
+      complexMap.forEach(cx => {
+        const canvas = document.getElementById(cx.id);
+        if (!canvas) return;
+        if (canvas.chart) canvas.chart.destroy();
+
+        const oilVals = trendsRes[cx.key]?.oil || [];
+        const gasVals = trendsRes[cx.key]?.gas || [];
+        const wiVals = trendsRes[cx.key]?.wi || [];
+
+        const allVals = oilVals.map((v, i) => v + (gasVals[i] || 0) + (wiVals[i] || 0));
+        const totalVal = allVals.reduce((a, b) => a + b, 0);
+
+        canvas.chart = new Chart(canvas, {
+          type: 'line',
+          data: {
+            labels: formattedDates,
+            datasets: [{
+              label: `${cx.label} Gain`,
+              data: allVals,
+              borderColor: cx.color,
+              backgroundColor: cx.color + '18',
+              fill: true,
+              tension: 0.3,
+              borderWidth: 1.5,
+              pointRadius: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) {
+                    return `${cx.label}: ${ctx.parsed.y.toFixed(1)} Bbls`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: { ticks: { color: '#000', font: { size: 7 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
+              y: { ticks: { color: '#000', font: { size: 8 } }, grid: { color: 'rgba(0,0,0,0.06)' }, beginAtZero: true }
+            },
+            animation: { duration: 0 }
+          }
+        });
+      });
+    }
+  }
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  // Calculate yesterday in local time (present day - 1 day)
+  const now = new Date();
+  now.setDate(now.getDate() - 1);
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const defaultDate = `${year}-${month}-${day}`;
+  const startDate = '2026-04-01';
+
+  const startEl = document.getElementById('start');
+  const endEl = document.getElementById('end');
+  const prodDateEl = document.getElementById('prodDate');
+
+  if (startEl) startEl.value = startDate;
+  if (endEl) endEl.value = defaultDate;
+  if (prodDateEl) prodDateEl.value = defaultDate;
+
+  if (typeof loadOverview === 'function') {
+    await loadOverview(startDate, defaultDate, defaultDate);
+  }
+});
+</script>
+
+</body>
+</html>
