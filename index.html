@@ -1323,13 +1323,13 @@ async function fetchAPI(endpoint, params = {}) {
         }
       };
     }
-    if (endpoint.includes('/production/complex/trends')) {
-      try {
-        const res = await fetch('complex_trends.json');
-        const json = await res.json();
-        return json;
-      } catch (e) { return {}; }
-    }
+  if (endpoint.includes('/production/complex/trends')) {
+    try {
+      const res = await fetch('complex_trends.json');
+      const json = await res.json();
+      return { data: json };
+    } catch (e) { return { data: {} }; }
+  }
     if (endpoint.includes('/flare/production')) {
       try {
         const res = await fetch('flare_data.json');
@@ -1752,7 +1752,7 @@ async function loadOverview(startDateParam = null, endDateParam = null, prodDate
 
   // Fetch complex-wise trend data from the new API endpoint
   const response = await fetchAPI('/production/complex/trends', {start_date: startDate, end_date: endDate});
-  const complexData = response ? response.data : null;
+  const complexData = response ? (response.data || response) : null;
 
   const complexes = [
     {id: 'MHN', name: 'MHN', color: '#10b981', area: 'North'},
