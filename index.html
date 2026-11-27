@@ -1358,18 +1358,6 @@ async function handleStaticFallback(endpoint, params) {
   }
   return [];
 }
-      try {
-        const res = await fetch('flare_data.json');
-        const json = await res.json();
-        return json.trends || { dates: [], 'MH Asset Total': [] };
-      } catch (e) { return { dates: [], 'MH Asset Total': [] }; }
-    }
-    if (endpoint.includes('/gain/production') || endpoint.includes('/gain/trends')) {
-      return [];
-    }
-    return null;
-  }
-}
 
 // Helper function to create comparison data display
 function updateComparison(compId, startValue, endValue, unit = 'BOPD') {
