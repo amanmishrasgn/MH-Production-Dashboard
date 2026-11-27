@@ -1283,19 +1283,43 @@ async function fetchAPI(endpoint, params = {}) {
 
     if (endpoint.includes('/production/daily')) {
       try {
-        const res = await fetch('production_data.json');
+        const res = await fetch('production_daily.json');
         const json = await res.json();
-        return json.data || json;
+        const data = (json.data || json).map(r => ({
+          production_date: r.production_date,
+          oil_bopd: r['Total Oil (BOPD)'] || 0,
+          gas_mmscm: r['Gas Total (MMSCMD)'] || 0,
+          wi_bwpd: r['WI Total (BWPD)'] || 0
+        }));
+        return data;
       } catch (e) { return []; }
     }
     if (endpoint.includes('/dashboard/summary')) {
+      try {
+        const res = await fetch('production_daily.json');
+        const json = await res.json();
+        const records = json.data || json;
+        const targetDate = params.start_date || (records.length > 0 ? records[records.length - 1].production_date : '2026-11-21');
+        const match = records.find(r => r.production_date === targetDate) || records[records.length - 1];
+        if (match) {
+          return {
+            production: {
+              total_oil_bopd: match['Total Oil (BOPD)'] || 0,
+              total_gas_mmscm: match['Gas Total (MMSCMD)'] || 0,
+              total_wi_bwpd: match['Total WI (BWPD)'] || 0,
+              oil_performance_percent: 100.0,
+              gas_performance_percent: 100.0
+            }
+          };
+        }
+      } catch(e) {}
       return {
         production: {
-          total_oil_bopd: 81809,
-          total_gas_mmscm: 7.442,
-          total_wi_bwpd: 228437.9,
-          oil_performance_percent: 98.5,
-          gas_performance_percent: 101.2
+          total_oil_bopd: 0,
+          total_gas_mmscm: 0,
+          total_wi_bwpd: 0,
+          oil_performance_percent: 0,
+          gas_performance_percent: 0
         }
       };
     }
