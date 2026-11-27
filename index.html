@@ -1867,13 +1867,11 @@ async function loadOverview(startDateParam = null, endDateParam = null, prodDate
   const byDate = {};
   productionData.forEach(row => {
     if (!byDate[row.production_date]) {
-      byDate[row.production_date] = {north: {}, south: {}};
+      byDate[row.production_date] = { oil: 0, gas: 0, wi: 0 };
     }
-    if (row.complex_name === 'MH North') {
-      byDate[row.production_date].north = row;
-    } else {
-      byDate[row.production_date].south = row;
-    }
+    byDate[row.production_date].oil += (row.oil_bopd || row['Total Oil (BOPD)'] || 0);
+    byDate[row.production_date].gas += (row.gas_mmscm || row['Gas Total (MMSCMD)'] || 0);
+    byDate[row.production_date].wi += (row.wi_bwpd || row['WI Total (BWPD)'] || 0);
   });
 
   const dates = Object.keys(byDate).sort();
@@ -1883,9 +1881,9 @@ async function loadOverview(startDateParam = null, endDateParam = null, prodDate
   });
 
   // Calculate totals for each date
-  const oilData = dates.map(d => (byDate[d].north.oil_bopd || 0) + (byDate[d].south.oil_bopd || 0));
-  const gasData = dates.map(d => (byDate[d].north.gas_mmscm || 0) + (byDate[d].south.gas_mmscm || 0));
-  const wiData = dates.map(d => (byDate[d].north.wi_bwpd || 0) + (byDate[d].south.wi_bwpd || 0));
+  const oilData = dates.map(d => byDate[d].oil);
+  const gasData = dates.map(d => byDate[d].gas);
+  const wiData = dates.map(d => byDate[d].wi);
 
   // Oil Production Trend
   const c1 = document.getElementById('c1');
