@@ -2010,7 +2010,7 @@ async function loadComplexWiseTrends(startDateParam = null, endDateParam = null)
     return;
   }
 
-  const complexData = response;
+  const complexData = response ? (response.data || response) : null;
   console.log('Complex data received:', Object.keys(complexData));
   if (complexData.MHN) {
     console.log('MHN oil sample:', complexData.MHN.oil?.length, complexData.MHN.oil?.[0]);
