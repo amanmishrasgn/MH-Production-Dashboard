@@ -1294,9 +1294,10 @@ async function fetchAPI(endpoint, params = {}) {
 
 async function handleStaticFallback(endpoint, params) {
   const base = getBaseUrl();
+  const v = Date.now();
   if (endpoint.includes('/production/daily')) {
     try {
-      const res = await fetch(`${base}production_daily.json`);
+      const res = await fetch(`${base}production_daily.json?v=${v}`);
       const json = await res.json();
       return (json.data || json).map(r => ({
         production_date: r.production_date,
@@ -1308,7 +1309,7 @@ async function handleStaticFallback(endpoint, params) {
   }
   if (endpoint.includes('/dashboard/summary')) {
     try {
-      const res = await fetch(`${base}production_daily.json`);
+      const res = await fetch(`${base}production_daily.json?v=${v}`);
       const json = await res.json();
       const records = json.data || json;
       const targetDate = params.start_date || (records.length > 0 ? records[records.length - 1].production_date : '2026-11-26');
@@ -1331,14 +1332,14 @@ async function handleStaticFallback(endpoint, params) {
   }
   if (endpoint.includes('/production/complex/trends')) {
     try {
-      const res = await fetch(`${base}complex_trends.json`);
+      const res = await fetch(`${base}complex_trends.json?v=${v}`);
       const json = await res.json();
       return { data: json };
     } catch (e) { return { data: {} }; }
   }
   if (endpoint.includes('/flare/production')) {
     try {
-      const res = await fetch(`${base}flare_data.json`);
+      const res = await fetch(`${base}flare_data.json?v=${v}`);
       const json = await res.json();
       const date = params.date || Object.keys(json.by_date)[Object.keys(json.by_date).length - 1];
       return json.by_date[date] || [];
@@ -1346,7 +1347,7 @@ async function handleStaticFallback(endpoint, params) {
   }
   if (endpoint.includes('/flare/trends')) {
     try {
-      const res = await fetch(`${base}flare_data.json`);
+      const res = await fetch(`${base}flare_data.json?v=${v}`);
       const json = await res.json();
       return json.trends || { dates: [], 'MH Asset Total': [] };
     } catch (e) { return { dates: [], 'MH Asset Total': [] }; }
