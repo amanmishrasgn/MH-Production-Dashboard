@@ -17,7 +17,7 @@ if "Daily Production (MH)" in wb.sheetnames:
         records.append({
             "production_date": row['Date'],
             "oil_bopd": float(row.get('Oil: MH Total (BOPD)', 0) or 0),
-            "gas_mmscm": float(row.get('Gas: MH Asset Total (MMSCMD)', 0) or 0),
+            "gas_mmscm": float(row.get('Gas: MH Asset Total (MMSCM)', row.get('Gas: MH Asset Total (MMSCMD)', 0)) or 0),
             "wi_bwpd": float(row.get('WI Inj: MH Total (BBLS)', 0) or 0)
         })
 
