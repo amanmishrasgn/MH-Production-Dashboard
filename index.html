@@ -578,17 +578,17 @@
     <div class="tab-panel active" id="overview">
       <div class="kpis">
         <div class="kpi kpi-oil">
-          <div class="kpi-label">Oil Production</div>
+          <div class="kpi-label" id="label-oil-prod">Oil Production</div>
           <div class="kpi-value" id="kpi-oil">27,450 <span class="kpi-unit">BOPD</span></div>
           <div class="kpi-change up" id="kpi-oil-perf">Performance: 0.0%</div>
         </div>
         <div class="kpi kpi-gas">
-          <div class="kpi-label">Gas Production</div>
+          <div class="kpi-label" id="label-gas-prod">Gas Production</div>
           <div class="kpi-value" id="kpi-gas">135.8 <span class="kpi-unit">MMSCMD</span></div>
           <div class="kpi-change up" id="kpi-gas-perf">Performance: 0.0%</div>
         </div>
         <div class="kpi kpi-wi">
-          <div class="kpi-label">Water Injection</div>
+          <div class="kpi-label" id="label-wi-prod">Water Injection</div>
           <div class="kpi-value" id="kpi-wi">52,800 <span class="kpi-unit">BWPD</span></div>
           <div class="kpi-change" id="kpi-wi-chg"></div>
         </div>
@@ -797,17 +797,17 @@
 
       <div class="kpis">
         <div class="kpi" style="border-left: 4px solid var(--oil);">
-          <div class="kpi-label">Total Oil Loss</div>
+          <div class="kpi-label" id="label-oil-loss">Total Oil Loss</div>
           <div class="kpi-value" id="lossKpiOil">0.0 <span class="kpi-unit">Bbls</span></div>
           <div class="kpi-change up" id="lossKpiOilChg">vs Yesterday: 0 Bbls</div>
         </div>
         <div class="kpi" style="border-left: 4px solid var(--gas);">
-          <div class="kpi-label">Total Gas Loss</div>
+          <div class="kpi-label" id="label-gas-loss">Total Gas Loss</div>
           <div class="kpi-value" id="lossKpiGas">0.000 <span class="kpi-unit">MMSCM</span></div>
           <div class="kpi-change up" id="lossKpiGasChg">vs Yesterday: 0 MMSCM</div>
         </div>
         <div class="kpi" style="border-left: 4px solid var(--wi);">
-          <div class="kpi-label">Total WI Loss</div>
+          <div class="kpi-label" id="label-wi-loss">Total WI Loss</div>
           <div class="kpi-value" id="lossKpiWi">0.0 <span class="kpi-unit">Bbls</span></div>
           <div class="kpi-change up" id="lossKpiWiChg">vs Yesterday: 0 Bbls</div>
         </div>
@@ -921,17 +921,17 @@
     <div class="tab-panel" id="flare">
       <div class="kpis">
         <div class="kpi" style="border-left: 4px solid #ea580c;">
-          <div class="kpi-label">Total Flare (Production Date)</div>
+          <div class="kpi-label" id="label-flare-total">Total Flare (Production Date)</div>
           <div class="kpi-value" id="flareKpiTotal">0.000 <span class="kpi-unit">MMSCMD</span></div>
           <div class="kpi-change up" id="flareKpiTotalChg">vs Yesterday: 0.000 MMSCMD</div>
         </div>
         <div class="kpi" style="border-left: 4px solid #f97316;">
-          <div class="kpi-label">Highest Flaring Complex</div>
+          <div class="kpi-label" id="label-flare-highest">Highest Flaring Complex</div>
           <div class="kpi-value" id="flareKpiHighest">—</div>
           <div class="kpi-change" id="flareKpiHighestVal">0.000 MMSCMD</div>
         </div>
         <div class="kpi" style="border-left: 4px solid #0284c7;">
-          <div class="kpi-label">Average Flare</div>
+          <div class="kpi-label" id="label-flare-avg">Average Flare</div>
           <div class="kpi-value" id="flareKpiAvg">0.000 <span class="kpi-unit">MMSCM/D</span></div>
           <div class="kpi-change" id="flareKpiDateRange">Cumulative: 0.000 MMSCM</div>
         </div>
@@ -1026,15 +1026,15 @@
     <div class="tab-panel" id="gains">
       <div class="kpis">
         <div class="kpi" style="border-left: 4px solid #10b981;">
-          <div class="kpi-label">Total Oil Gain (Bbls)</div>
+          <div class="kpi-label" id="label-oil-gain">Total Oil Gain (Bbls)</div>
           <div class="kpi-value" id="gainKpiOil">0.0 <span class="kpi-unit">Bbls</span></div>
         </div>
         <div class="kpi" style="border-left: 4px solid #0284c7;">
-          <div class="kpi-label">Total Gas Gain (MMSCM)</div>
+          <div class="kpi-label" id="label-gas-gain">Total Gas Gain (MMSCM)</div>
         <div class="kpi-value" id="gainKpiGas">0.000 <span class="kpi-unit">MMSCM</span></div>
         </div>
         <div class="kpi" style="border-left: 4px solid #0891b2;">
-          <div class="kpi-label">Total WI Gain (Bbls)</div>
+          <div class="kpi-label" id="label-wi-gain">Total WI Gain (Bbls)</div>
           <div class="kpi-value" id="gainKpiWi">0.0 <span class="kpi-unit">Bbls</span></div>
         </div>
       </div>
@@ -1167,6 +1167,34 @@ const formatDateDDMMYYYY = (dateStr) => {
     return `${parts[2]}-${parts[1]}-${parts[0]}`;
   }
   return dateStr;
+};
+
+const updateProductionDateLabels = () => {
+  const prodDateInput = document.getElementById('prodDate');
+  if (!prodDateInput) return;
+  const prodDateVal = prodDateInput.value;
+  if (!prodDateVal) return;
+  const parts = prodDateVal.split('-');
+  if (parts.length !== 3) return;
+  const formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+
+  const setLabel = (id, baseText) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = `${baseText} - ${formattedDate}`;
+  };
+
+  setLabel('label-oil-prod', 'Oil Production');
+  setLabel('label-gas-prod', 'Gas Production');
+  setLabel('label-wi-prod', 'Water Injection');
+  setLabel('label-oil-loss', 'Total Oil Loss');
+  setLabel('label-gas-loss', 'Total Gas Loss');
+  setLabel('label-wi-loss', 'Total WI Loss');
+  setLabel('label-flare-total', 'Total Flare (Production Date)');
+  setLabel('label-flare-highest', 'Highest Flaring Complex');
+  setLabel('label-flare-avg', 'Average Flare');
+  setLabel('label-oil-gain', 'Total Oil Gain (Bbls)');
+  setLabel('label-gas-gain', 'Total Gas Gain (MMSCM)');
+  setLabel('label-wi-gain', 'Total WI Gain (Bbls)');
 };
 
 const opts = (extra = {}) => Object.assign({
@@ -1703,6 +1731,7 @@ async function exportChartData(canvasId, filename) {
 }
 
 async function loadOverview(startDateParam = null, endDateParam = null, prodDateParam = null) {
+  updateProductionDateLabels();
   // Use provided parameters if available, otherwise read from DOM inputs
   const startDate = startDateParam || document.getElementById('start').value;
   const endDate = endDateParam || document.getElementById('end').value;
@@ -2255,6 +2284,7 @@ async function loadComplexWiseTrends(startDateParam = null, endDateParam = null)
 
 // Production Date change handler - updates KPI values for specific date
 async function onProdDateChange() {
+  updateProductionDateLabels();
   const prodDate = document.getElementById('prodDate').value;
 
   // Fetch data for this specific date
@@ -2315,6 +2345,7 @@ let lossRawData = { summary: {}, records: [] };
 let lossPieInstances = [];
 
 async function loadLosses() {
+  updateProductionDateLabels();
   console.log('loadLosses called, checking if data needs to be loaded...');
 
   if (lossRawData.records.length === 0) {
@@ -3110,6 +3141,7 @@ function renderLossTable(filtered) {
 }
 
 async function loadFlare() {
+  updateProductionDateLabels();
   const startDate = document.getElementById('start').value;
   const endDate = document.getElementById('end').value;
   const prodDate = document.getElementById('prodDate').value;
@@ -3321,6 +3353,7 @@ async function loadFlare() {
 }
 
 async function loadGains() {
+  updateProductionDateLabels();
   const startDate = document.getElementById('start').value;
   const endDate = document.getElementById('end').value;
   const prodDate = document.getElementById('prodDate').value;
@@ -3407,6 +3440,7 @@ async function loadGains() {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+  updateProductionDateLabels();
   const defaultDate = '2026-11-26';
   const startDate = '2026-04-01';
 
